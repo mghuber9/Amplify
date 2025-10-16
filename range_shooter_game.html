@@ -9,7 +9,7 @@
   ------------------
   • This is a single-file HTML game. Paste it into any HTML block (Amplify, LMS, Google Sites, etc.).
   • Optional score logging: set WEBHOOK_URL to your Apps Script/endpoint.
-  • Keyboard: Click to shoot. Press P to pause. Press R to restart. Press M to toggle mute.
+  • Keyboard: Click to shoot. Press P to pause. Press R to restart. Press M to mute/unmute.
   • Goal: Only shoot targets whose number satisfies the shown inequality/range. Hitting wrong targets costs a life.
   • Teacher options: tweak GAME_CONFIG below or load your own customRanges.
   -->
@@ -34,14 +34,16 @@
     .btn { cursor: pointer; background: linear-gradient(180deg, #1d283a, #121a2b); border:1px solid rgba(255,255,255,0.12); color: #dbeafe; padding: 8px 12px; border-radius: 10px; font-weight: 600; box-shadow: var(--shadow); transition: transform .06s ease; }
     .btn:hover { transform: translateY(-1px); }
     .btn:active { transform: translateY(0); }
+    .tbtn { cursor:pointer; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.18); color:#e5e7eb; padding:6px 10px; border-radius:10px; font-weight:600; box-shadow: var(--shadow); }
 
     .game-panel { display:grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
     @media (max-width: 980px) { .game-panel { grid-template-columns: 1fr; } }
 
     .side { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
     .side h3 { margin: 6px 0 10px; font-size: 14px; color: #c7d2fe; letter-spacing:.3px; }
-    .kv { display:flex; justify-content:space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+    .kv { display:flex; justify-content:space-between; align-items:center; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
     .kv:last-child{ border-bottom: none; }
+    .sel { background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.18); color:#e5e7eb; border-radius:8px; padding:6px 8px; font-size:13px; }
     .inequality { font-size: clamp(18px, 2.4vw, 28px); font-weight: 800; color: var(--accent); text-shadow: 0 2px 20px rgba(74,222,128,.25); letter-spacing: .5px; }
     .desc { color: var(--muted); font-size: 12px; margin-top: 6px; }
 
@@ -78,15 +80,16 @@
       <section class="side">
         <h3>Current Target</h3>
         <div class="inequality" id="ineqText">x ∈ [1, 5)</div>
-        <div class="inequality" id="ineqTextIneq" style="font-size:clamp(16px,2vw,22px); color:#c7d2fe;">1 ≤ x < 5</div>
+        <div class="inequality" id="ineqTextIneq" style="font-size:clamp(16px,2vw,22px); color:#c7d2fe;">1 ≤ x &lt; 5</div>
         <div class="desc" id="ineqDesc">Shoot numbers that are ≥ 1 and &lt; 5.</div>
 
         <h3 style="margin-top:14px">Settings</h3>
-        <div class="kv"><span>Difficulty</span><strong id="diffLabel">Normal</strong></div>
-        <div class="kv"><span>Spawn Rate</span><strong id="spawnLabel">Every 900 ms</strong></div>
-        <div class="kv"><span>Speed</span><strong id="speedLabel">1.8 px/frame</strong></div>
+        <div class="kv"><span>Difficulty</span><div style="display:flex; gap:8px; align-items:center;"><select id="diffSelect" class="sel"><option>Easy</option><option>Normal</option><option>Hard</option></select><strong id="diffLabel">Easy</strong></div></div>
+        <div class="kv"><span>Spawn Rate</span><strong id="spawnLabel">Every 1200 ms</strong></div>
+        <div class="kv"><span>Speed</span><strong id="speedLabel">1.2 px/frame</strong></div>
         <div class="kv"><span>Number Range</span><strong id="numLabel">−20 to 20</strong></div>
         <div class="kv"><span>Decimals</span><strong id="decLabel">Off</strong></div>
+        <div class="kv"><span>Sound</span><button class="tbtn" id="soundBtn" aria-pressed="false">Sound: On</button></div>
 
         <div class="desc" style="margin-top:12px">Tip: Click/tap to shoot. Wrong hits cost a life. Survive and score by being precise!
         </div>
@@ -139,6 +142,7 @@
 <script>
 // ===================== Teacher/Host Configuration ===================== //
 const GAME_CONFIG = {
+  difficulty: 'Easy',
   width: 1280,
   height: 720,
   lives: 3,
@@ -162,6 +166,7 @@ const GAME_CONFIG = {
     "Awesome! Reset and tackle the next one."
   ],
   customRanges: [
+    // Optional teacher presets for 'between' ranges
   ],
 };
 
@@ -173,6 +178,25 @@ const WEBHOOK_URL = ""; // e.g., "https://script.google.com/macros/s/XXXXX/exec"
 const rand = (min, max) => Math.random() * (max - min) + min;
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Difficulty presets visible to students
+const DIFFICULTY_PRESETS = {
+  // Rebased so "Hard" equals the old Easy; Normal/Easy are slower from there
+  'Hard':   { baseSpeed: 1.2, spawnEveryMs: 1200, maxOnScreen: 7 },
+  'Normal': { baseSpeed: 0.9, spawnEveryMs: 1500, maxOnScreen: 6 },
+  'Easy':   { baseSpeed: 0.7, spawnEveryMs: 1700, maxOnScreen: 5 },
+};
+function applyDifficulty(name){
+  const p = DIFFICULTY_PRESETS[name];
+  if (!p) return;
+  GAME_CONFIG.baseSpeed = p.baseSpeed;
+  GAME_CONFIG.spawnEveryMs = p.spawnEveryMs;
+  GAME_CONFIG.maxOnScreen = p.maxOnScreen;
+  GAME_CONFIG.difficulty = name;
+  if (diffSelect) diffSelect.value = name;
+  updateHUD();
+  toast(`Difficulty: ${name}`);
+}
 
 function chooseRange() {
   const typeRoll = Math.random();
@@ -227,6 +251,7 @@ function formatInequality({type='between', a, b, leftInclusive, rightInclusive})
 }
 
 function satisfies(n, spec) {
+  if (!spec || typeof spec !== 'object') return false; // guard against undefined spec
   const { type='between', a, b, leftInclusive, rightInclusive } = spec;
   if (type === 'between') {
     const leftOK = leftInclusive ? (n >= a) : (n > a);
@@ -277,11 +302,12 @@ const state = {
   shots: 0,
   hits: 0,
   hitsSinceChange: 0,
-  ineq: chooseRange(),
+  ineq: chooseRange(), // ensure initialized before any HUD/logic reads
   targets: [],
   bullets: [],
   feedbacks: [],
   lastSpawn: 0,
+  muted: false,
 };
 
 // UI refs
@@ -296,6 +322,8 @@ const spawnLabel = document.getElementById('spawnLabel');
 const speedLabel = document.getElementById('speedLabel');
 const numLabel = document.getElementById('numLabel');
 const decLabel = document.getElementById('decLabel');
+const diffSelect = document.getElementById('diffSelect');
+const soundBtn = document.getElementById('soundBtn');
 
 const startOverlay = document.getElementById('startOverlay');
 const startBtn = document.getElementById('startBtn');
@@ -317,7 +345,7 @@ function updateHUD() {
   scoreEl.textContent = `Score: ${state.score}`;
   livesEl.textContent = `Lives: ${state.lives}`;
   comboEl.textContent = `Combo: ${state.combo.toFixed(1)}×`;
-  diffLabel.textContent = GAME_CONFIG.baseSpeed <= 1.4 ? 'Easy' : (GAME_CONFIG.baseSpeed >= 2.4 ? 'Hard' : 'Normal');
+  diffLabel.textContent = GAME_CONFIG.difficulty || (GAME_CONFIG.baseSpeed <= 1.4 ? 'Easy' : (GAME_CONFIG.baseSpeed >= 2.4 ? 'Hard' : 'Normal'));
   spawnLabel.textContent = `Every ${GAME_CONFIG.spawnEveryMs} ms`;
   speedLabel.textContent = `${GAME_CONFIG.baseSpeed.toFixed(1)} px/frame`;
   numLabel.textContent = `${GAME_CONFIG.minNumber} to ${GAME_CONFIG.maxNumber}`;
@@ -495,9 +523,18 @@ window.addEventListener('keydown', (e)=>{
   if (e.key === 'r' || e.key === 'R') restart();
   if (e.key === 'm' || e.key === 'M') {
     const m = AudioFX.toggle();
+    state.muted = m;
+    updateSoundUI(m);
     toast(m ? 'Muted' : 'Unmuted');
   }
 });
+
+// ===================== Sound UI ===================== //
+function updateSoundUI(muted){
+  if (!soundBtn) return;
+  soundBtn.textContent = muted ? 'Sound: Off' : 'Sound: On';
+  soundBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+}
 
 // ===================== Flow ===================== //
 function triggerCheckpoint(){
@@ -505,6 +542,10 @@ function triggerCheckpoint(){
   state.ineq = chooseRange();
   updateHUD();
   state.hitsSinceChange = 0;
+  // Clear the screen so the new inequality starts fresh
+  state.targets = [];
+  state.bullets = [];
+  state.feedbacks = [];
   state.paused = true;
   const msgs = GAME_CONFIG.goodJobMessages || ['Great job!'];
   const msg = msgs[Math.floor(Math.random()*msgs.length)] || 'Great job!';
@@ -516,7 +557,7 @@ function continueAfterCheckpoint(){
   state.paused = false;
   requestAnimationFrame(loop);
 }
-// ===================== Flow ===================== //
+
 function start() {
   startOverlay.style.display = 'none';
   gameOverOverlay.style.display = 'none';
@@ -566,13 +607,30 @@ function toast(msg){
   clearTimeout(toastTimeout); toastTimeout = setTimeout(()=>{ el.style.opacity='0'; }, 800);
 }
 
-// Buttons
+// Buttons & UI wiring
 window.addEventListener('DOMContentLoaded', () => {
   startBtn.addEventListener('click', start);
   againBtn.addEventListener('click', start);
   pauseBtn.addEventListener('click', togglePause);
   restartBtn.addEventListener('click', restart);
   continueBtn.addEventListener('click', continueAfterCheckpoint);
+  // Sound toggle
+  if (soundBtn){
+    soundBtn.addEventListener('click', ()=>{
+      const m = AudioFX.toggle();
+      state.muted = m;
+      updateSoundUI(m);
+      toast(m ? 'Muted' : 'Unmuted');
+    });
+    updateSoundUI(state.muted);
+  }
+  // Init difficulty selector
+  if (diffSelect){
+    diffSelect.value = GAME_CONFIG.difficulty || 'Easy';
+    diffSelect.addEventListener('change', (e)=> applyDifficulty(e.target.value));
+    // apply initial so labels reflect preset
+    applyDifficulty(diffSelect.value);
+  }
 });
 window.start = start; // expose for manual triggers if needed
 
@@ -594,7 +652,7 @@ updateHUD(); resize();
     console.groupEnd();
   }
 
-  // Between tests
+  // Between tests (given)
   add('between: 1 ≤ x < 5 accepts 1 and 4, rejects 5 and 0', ()=>{
     const spec = {type:'between', a:1, b:5, leftInclusive:true, rightInclusive:false};
     console.assert(satisfies(1,spec) === true, '1 should pass');
@@ -603,7 +661,7 @@ updateHUD(); resize();
     console.assert(satisfies(0,spec) === false, '0 should fail');
   });
 
-  // Left tests
+  // Left tests (given)
   add('left: x ≤ 3 accepts 3 and -1; rejects 4', ()=>{
     const spec = {type:'left', b:3, rightInclusive:true};
     console.assert(satisfies(3,spec) === true, '3 should pass');
@@ -611,7 +669,7 @@ updateHUD(); resize();
     console.assert(satisfies(4,spec) === false, '4 should fail');
   });
 
-  // Right tests
+  // Right tests (given)
   add('right: x > -2 accepts -1 and 0; rejects -2', ()=>{
     const spec = {type:'right', a:-2, leftInclusive:false};
     console.assert(satisfies(-1,spec) === true, '-1 should pass');
@@ -619,12 +677,37 @@ updateHUD(); resize();
     console.assert(satisfies(-2,spec) === false, '-2 should fail');
   });
 
-  // Outside tests
+  // Outside tests (given)
   add('outside: x ≤ 2 OR x ≥ 8 accepts 2 and 9; rejects 5', ()=>{
     const spec = {type:'outside', a:2, b:8, leftInclusive:true, rightInclusive:true};
     console.assert(satisfies(2,spec) === true, '2 should pass');
     console.assert(satisfies(9,spec) === true, '9 should pass');
     console.assert(satisfies(5,spec) === false, '5 should fail');
+  });
+
+  // --- Added tests ---
+  add('left (open): x < 5 rejects 5, accepts 4', ()=>{
+    const spec = {type:'left', b:5, rightInclusive:false};
+    console.assert(satisfies(4,spec) === true, '4 should pass');
+    console.assert(satisfies(5,spec) === false, '5 should fail');
+  });
+
+  add('right (closed): x ≥ 10 accepts 10, rejects 9', ()=>{
+    const spec = {type:'right', a:10, leftInclusive:true};
+    console.assert(satisfies(10,spec) === true, '10 should pass');
+    console.assert(satisfies(9,spec) === false, '9 should fail');
+  });
+
+  add('outside (mixed): x < -3 OR x ≥ 4 — accepts -4 and 4; rejects 0', ()=>{
+    const spec = {type:'outside', a:-3, b:4, leftInclusive:false, rightInclusive:true};
+    console.assert(satisfies(-4,spec) === true, '-4 should pass');
+    console.assert(satisfies(4,spec) === true, '4 should pass');
+    console.assert(satisfies(0,spec) === false, '0 should fail');
+  });
+
+  add('chooseRange() returns a spec with a type', ()=>{
+    const spec = chooseRange();
+    console.assert(spec && typeof spec.type === 'string', 'spec.type should exist');
   });
 
   run();
