@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Range Shooter – Inequality Targets</title>
+  <!--
+  HOW TO USE / EMBED
+  ------------------
+  • This is a single-file HTML game. Paste it into any HTML block (Amplify, LMS, Google Sites, etc.).
+  • Optional score logging: set WEBHOOK_URL to your Apps Script/endpoint.
+  • Keyboard: Click to shoot. Press P to pause. Press R to restart. Press M to toggle mute.
+  • Goal: Only shoot targets whose number satisfies the shown inequality/range. Hitting wrong targets costs a life.
+  • Teacher options: tweak GAME_CONFIG below or load your own customRanges.
+  -->
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #11162a;
+      --accent: #4ade80; /* green */
+      --accent2: #60a5fa; /* blue */
+      --bad: #f87171; /* red */
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    html, body {
+      margin: 0; height: 100%; background: radial-gradient(1200px 800px at 70% -20%, #1a2444 0%, var(--bg) 45%); color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    .wrap { display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh; }
+    header { display:flex; align-items:center; gap:16px; padding: 14px 18px; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.0)); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .title { font-size: clamp(18px, 2vw, 22px); font-weight: 700; letter-spacing: .3px; }
+    .sub { color: var(--muted); font-size: 12px; }
+    .hud { display:flex; gap:14px; align-items:center; margin-left:auto; }
+    .badge { background: rgba(255,255,255,0.06); padding: 6px 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; box-shadow: var(--shadow); font-size: 12px; }
+    .btn { cursor: pointer; background: linear-gradient(180deg, #1d283a, #121a2b); border:1px solid rgba(255,255,255,0.12); color: #dbeafe; padding: 8px 12px; border-radius: 10px; font-weight: 600; box-shadow: var(--shadow); transition: transform .06s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .game-panel { display:grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px; }
+    @media (max-width: 980px) { .game-panel { grid-template-columns: 1fr; } }
+
+    .side { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00)); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
+    .side h3 { margin: 6px 0 10px; font-size: 14px; color: #c7d2fe; letter-spacing:.3px; }
+    .kv { display:flex; justify-content:space-between; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+    .kv:last-child{ border-bottom: none; }
+    .inequality { font-size: clamp(18px, 2.4vw, 28px); font-weight: 800; color: var(--accent); text-shadow: 0 2px 20px rgba(74,222,128,.25); letter-spacing: .5px; }
+    .desc { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .canvas-wrap { position: relative; background: radial-gradient(1200px 500px at 50% -10%, #0e1630 0%, #070b17 60%, #05070e 100%); border:1px solid rgba(255,255,255,0.08); border-radius: 14px; box-shadow: var(--shadow); height: 70vh; min-height: 420px; overflow: hidden; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    .overlay { position:absolute; inset: 0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    .center-card { pointer-events:auto; background: rgba(9,14,28,.75); backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,0.12); border-radius: 16px; width:min(520px, 92%); padding: 18px; text-align:center; box-shadow: var(--shadow); }
+    .center-card h2 { margin: 4px 0 6px; font-weight: 800; letter-spacing: .4px; }
+    .center-card p { color: var(--muted); font-size: 14px; }
+
+    .flex { display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap: wrap; }
+    .pill { background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius:999px; padding:6px 10px; font-size:12px; }
+    .footer { padding: 10px 16px 18px; color: var(--muted); font-size:12px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title">Range Shooter: Inequality Targets</div>
+        <div class="sub">Shoot ONLY the numbers that satisfy the shown range/inequality.</div>
+      </div>
+      <div class="hud">
+        <div class="badge" id="score">Score: 0</div>
+        <div class="badge" id="lives">Lives: 3</div>
+        <div class="badge" id="combo">Combo: 1×</div>
+        <button class="btn" id="pauseBtn">Pause (P)</button>
+        <button class="btn" id="restartBtn">Restart (R)</button>
+      </div>
+    </header>
+
+    <main class="game-panel">
+      <section class="side">
+        <h3>Current Target</h3>
+        <div class="inequality" id="ineqText">x ∈ [1, 5)</div>
+        <div class="desc" id="ineqDesc">Shoot numbers that are ≥ 1 and &lt; 5.</div>
+
+        <h3 style="margin-top:14px">Settings</h3>
+        <div class="kv"><span>Difficulty</span><strong id="diffLabel">Normal</strong></div>
+        <div class="kv"><span>Spawn Rate</span><strong id="spawnLabel">Every 900 ms</strong></div>
+        <div class="kv"><span>Speed</span><strong id="speedLabel">1.8 px/frame</strong></div>
+        <div class="kv"><span>Number Range</span><strong id="numLabel">−20 to 20</strong></div>
+        <div class="kv"><span>Decimals</span><strong id="decLabel">Off</strong></div>
+
+        <div class="desc" style="margin-top:12px">Tip: Click/tap to shoot. Wrong hits cost a life. Survive and score by being precise!
+        </div>
+
+        <h3 style="margin-top:14px">Teacher Options</h3>
+        <div class="desc">
+          Open the source and edit <code>GAME_CONFIG</code> (speed, lives, ranges) or provide a <code>customRanges</code> array.
+        </div>
+      </section>
+
+      <section class="canvas-wrap">
+        <canvas id="game"></canvas>
+        <div class="overlay" id="startOverlay">
+          <div class="center-card">
+            <h2>Ready, Ranger?</h2>
+            <p>Click <em>Start</em> to begin. Shoot ONLY targets that satisfy the inequality.</p>
+            <div class="flex" style="margin:12px 0 14px">
+              <span class="pill">Click/Tap: shoot</span>
+              <span class="pill">P: pause</span>
+              <span class="pill">R: restart</span>
+              <span class="pill">M: mute</span>
+            </div>
+            <button class="btn" id="startBtn">Start</button>
+          </div>
+        </div>
+        <div class="overlay" id="gameOverOverlay" style="display:none">
+          <div class="center-card">
+            <h2>Game Over</h2>
+            <p id="finalScore">Your score: 0</p>
+            <div class="flex" style="margin:12px 0 14px">
+              <span class="pill" id="summaryIneq"></span>
+              <span class="pill" id="summaryAccuracy"></span>
+            </div>
+            <button class="btn" id="againBtn">Play Again</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">© Range Shooter – use freely in your classroom. Optional logging supported (see code).</div>
+  </div>
+
+<script>
+// ===================== Teacher/Host Configuration ===================== //
+const GAME_CONFIG = {
+  width: 1280,        // canvas internal width (auto scales to container)
+  height: 720,        // canvas internal height
+  lives: 3,
+  baseSpeed: 1.8,     // target fall speed (px per frame)
+  spawnEveryMs: 900,  // spawn interval
+  allowDecimals: false,
+  minNumber: -20,
+  maxNumber: 20,
+  pointsGood: 100,
+  pointsBad: -75,
+  comboBonus: 0.1,    // per-hit multiplier increment
+  missPenalty: 0.5,   // combo decay on miss
+  maxOnScreen: 9,
+  soundVolume: 0.18,
+
+  // Provide fixed, teacher-curated ranges (optional). If empty, ranges randomize.
+  // Each item: { a: number, b: number, leftInclusive: boolean, rightInclusive: boolean }
+  customRanges: [
+    // Example presets — feel free to edit or leave empty for randomized play
+    // { a: -5, b: 3, leftInclusive: true, rightInclusive: false },
+    // { a: 2, b: 9, leftInclusive: false, rightInclusive: true },
+  ],
+};
+
+// Optional: send end-of-game results to a webhook (Google Apps Script, etc.)
+// Set to a non-empty string to enable.
+const WEBHOOK_URL = ""; // e.g., "https://script.google.com/macros/s/XXXXX/exec"
+
+// ===================== Utility ===================== //
+const rand = (min, max) => Math.random() * (max - min) + min;
+const randInt = (min, max) => Math.floor(rand(min, max + 1));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function chooseRange() {
+  if (GAME_CONFIG.customRanges && GAME_CONFIG.customRanges.length) {
+    const r = GAME_CONFIG.customRanges[randInt(0, GAME_CONFIG.customRanges.length - 1)];
+    return { ...r };
+  }
+  // Randomized inclusive/exclusive endpoints
+  let a = rand(GAME_CONFIG.minNumber, GAME_CONFIG.maxNumber - 3);
+  let b = rand(a + 2, GAME_CONFIG.maxNumber);
+  if (!GAME_CONFIG.allowDecimals) { a = Math.round(a); b = Math.round(b); if (a === b) b += 1; }
+  const leftInclusive = Math.random() < 0.5;
+  const rightInclusive = Math.random() < 0.5;
+  return { a: Math.min(a, b), b: Math.max(a, b), leftInclusive, rightInclusive };
+}
+
+function formatInequality({a, b, leftInclusive, rightInclusive}) {
+  const L = leftInclusive ? "[" : "(";
+  const R = rightInclusive ? "]" : ")";
+  const desc = `Shoot numbers that are ${leftInclusive ? "≥" : ">"} ${a} and ${rightInclusive ? "≤" : "<"} ${b}.`;
+  return { text: `x ∈ ${L}${a}, ${b}${R}`, desc };
+}
+
+function satisfies(n, {a, b, leftInclusive, rightInclusive}) {
+  const leftOK = leftInclusive ? (n >= a) : (n > a);
+  const rightOK = rightInclusive ? (n <= b) : (n < b);
+  return leftOK && rightOK;
+}
+
+// ===================== Simple Audio (beeps) ===================== //
+const AudioFX = (() => {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let muted = false;
+  function tone(freq=440, dur=0.08, type='sine', vol=GAME_CONFIG.soundVolume) {
+    if (muted) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + dur);
+  }
+  return { tone, toggle(){ muted=!muted; return muted; } };
+})();
+
+// ===================== Game State ===================== //
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+let W = GAME_CONFIG.width, H = GAME_CONFIG.height;
+
+const state = {
+  running: false,
+  paused: false,
+  score: 0,
+  lives: GAME_CONFIG.lives,
+  combo: 1,
+  shots: 0,
+  hits: 0,
+  ineq: chooseRange(),
+  targets: [],
+  bullets: [],
+  lastSpawn: 0,
+};
+
+// UI refs
+const scoreEl = document.getElementById('score');
+const livesEl = document.getElementById('lives');
+const comboEl = document.getElementById('combo');
+const ineqText = document.getElementById('ineqText');
+const ineqDesc = document.getElementById('ineqDesc');
+const diffLabel = document.getElementById('diffLabel');
+const spawnLabel = document.getElementById('spawnLabel');
+const speedLabel = document.getElementById('speedLabel');
+const numLabel = document.getElementById('numLabel');
+const decLabel = document.getElementById('decLabel');
+
+const startOverlay = document.getElementById('startOverlay');
+const startBtn = document.getElementById('startBtn');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const againBtn = document.getElementById('againBtn');
+const finalScore = document.getElementById('finalScore');
+const summaryIneq = document.getElementById('summaryIneq');
+const summaryAccuracy = document.getElementById('summaryAccuracy');
+
+const pauseBtn = document.getElementById('pauseBtn');
+const restartBtn = document.getElementById('restartBtn');
+
+function updateHUD() {
+  const { text, desc } = formatInequality(state.ineq);
+  ineqText.textContent = text; ineqDesc.textContent = desc;
+  scoreEl.textContent = `Score: ${state.score}`;
+  livesEl.textContent = `Lives: ${state.lives}`;
+  comboEl.textContent = `Combo: ${state.combo.toFixed(1)}×`;
+  diffLabel.textContent = GAME_CONFIG.baseSpeed <= 1.4 ? 'Easy' : (GAME_CONFIG.baseSpeed >= 2.4 ? 'Hard' : 'Normal');
+  spawnLabel.textContent = `Every ${GAME_CONFIG.spawnEveryMs} ms`;
+  speedLabel.textContent = `${GAME_CONFIG.baseSpeed.toFixed(1)} px/frame`;
+  numLabel.textContent = `${GAME_CONFIG.minNumber} to ${GAME_CONFIG.maxNumber}`;
+  decLabel.textContent = GAME_CONFIG.allowDecimals ? 'On' : 'Off';
+}
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const scale = Math.min(rect.width / GAME_CONFIG.width, rect.height / GAME_CONFIG.height);
+  W = Math.floor(GAME_CONFIG.width); H = Math.floor(GAME_CONFIG.height);
+  DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = `${Math.floor(W * scale)}px`;
+  canvas.style.height = `${Math.floor(H * scale)}px`;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+// ===================== Entities ===================== //
+class Target {
+  constructor(x, y, value, speed) {
+    this.x = x; this.y = y; this.r = 24; this.value = value; this.speed = speed;
+    this.alive = true; this.flash = 0;
+    this.vx = rand(-0.4, 0.4);
+  }
+  update() {
+    this.y += this.speed; this.x += this.vx; this.vx *= 0.99;
+    if (this.y - this.r > H + 40) this.alive = false;
+  }
+  draw(g) {
+    g.save();
+    const good = satisfies(this.value, state.ineq);
+    const base = good ? 'rgba(74, 222, 128, ' : 'rgba(96, 165, 250, ';
+    const glow = good ? 'rgba(74, 222, 128, 0.25)' : 'rgba(96, 165, 250, 0.25)';
+    const a = this.flash > 0 ? Math.max(0.35, this.flash) : 0.22;
+    // glow
+    g.fillStyle = glow; g.beginPath(); g.arc(this.x, this.y, this.r+16, 0, Math.PI*2); g.fill();
+    // core
+    g.fillStyle = base + (0.65 + a) + ')';
+    g.beginPath(); g.arc(this.x, this.y, this.r, 0, Math.PI*2); g.fill();
+    // outline
+    g.strokeStyle = 'rgba(255,255,255,0.2)'; g.lineWidth = 2; g.stroke();
+    // number
+    g.fillStyle = 'white'; g.font = 'bold 18px system-ui, -apple-system, Segoe UI, Roboto'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(String(this.value), this.x, this.y+1);
+    g.restore();
+    this.flash = Math.max(0, this.flash - 0.04);
+  }
+}
+
+class Bullet {
+  constructor(x, y) { this.x = x; this.y = y; this.r = 4; this.speed = 7; this.alive = true; }
+  update(){ this.y -= this.speed; if (this.y < -20) this.alive = false; }
+  draw(g){
+    g.save();
+    const grd = g.createLinearGradient(this.x, this.y+10, this.x, this.y-10);
+    grd.addColorStop(0, 'rgba(99,102,241,0.1)');
+    grd.addColorStop(1, 'rgba(99,102,241,0.8)');
+    g.fillStyle = grd;
+    g.beginPath(); g.arc(this.x, this.y, this.r, 0, Math.PI*2); g.fill();
+    g.restore();
+  }
+}
+
+// ===================== Game Loop ===================== //
+let lastT = 0;
+function loop(t) {
+  if (!state.running || state.paused) { requestAnimationFrame(loop); return; }
+  const dt = t - lastT; lastT = t;
+
+  // spawn
+  if (state.targets.length < GAME_CONFIG.maxOnScreen && (t - state.lastSpawn) > GAME_CONFIG.spawnEveryMs) {
+    state.lastSpawn = t;
+    const value = GAME_CONFIG.allowDecimals ? Number(rand(GAME_CONFIG.minNumber, GAME_CONFIG.maxNumber).toFixed(1)) : randInt(GAME_CONFIG.minNumber, GAME_CONFIG.maxNumber);
+    const x = rand(40, W-40);
+    state.targets.push(new Target(x, -30, value, GAME_CONFIG.baseSpeed + rand(-0.2, 0.2)));
+  }
+
+  // update
+  state.targets.forEach(o=>o.update());
+  state.bullets.forEach(b=>b.update());
+
+  // collisions
+  for (const b of state.bullets) {
+    for (const o of state.targets) {
+      if (!b.alive || !o.alive) continue;
+      const dx = b.x - o.x, dy = b.y - o.y; const d2 = dx*dx + dy*dy; const rr = (b.r + o.r) * (b.r + o.r);
+      if (d2 <= rr) {
+        b.alive = false; o.flash = 1.0;
+        const good = satisfies(o.value, state.ineq);
+        if (good) {
+          state.hits++;
+          const add = Math.round(GAME_CONFIG.pointsGood * state.combo);
+          state.score += add; state.combo += GAME_CONFIG.comboBonus; AudioFX.tone(660, .07, 'square');
+          // replace range sometimes to keep variety
+          if (Math.random() < 0.25) { state.ineq = chooseRange(); updateHUD(); }
+        } else {
+          state.lives -= 1; state.combo = Math.max(1, state.combo - GAME_CONFIG.missPenalty); AudioFX.tone(180, .12, 'sawtooth');
+        }
+        // mark target removed after feedback draw
+        setTimeout(()=>{ o.alive = false; }, 40);
+      }
+    }
+  }
+
+  // cull
+  state.targets = state.targets.filter(o=>o.alive);
+  state.bullets = state.bullets.filter(b=>b.alive);
+
+  // lose life if a correct target escapes bottom (optional rule)
+  for (const o of state.targets) {
+    if (o.y - o.r > H + 20 && satisfies(o.value, state.ineq)) {
+      state.lives -= 1; state.combo = 1; AudioFX.tone(220, .08, 'triangle');
+    }
+  }
+
+  // render
+  draw();
+  updateHUD();
+
+  // end
+  if (state.lives <= 0) {
+    endGame();
+  } else {
+    requestAnimationFrame(loop);
+  }
+}
+
+function draw() {
+  // bg
+  ctx.clearRect(0,0,canvas.width, canvas.height);
+  // starfield
+  ctx.save();
+  for (let i=0;i<24;i++){
+    ctx.fillStyle = `rgba(255,255,255,${0.05 + Math.random()*0.05})`;
+    const sx = (i*53 % W) + Math.random()*8;
+    const sy = (i*97 % H) + Math.random()*8;
+    ctx.fillRect(sx, sy, 2, 2);
+  }
+  ctx.restore();
+
+  // ground/cannon
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillRect(0, H-40, W, 40);
+  ctx.restore();
+
+  // entities
+  state.targets.forEach(o=>o.draw(ctx));
+  state.bullets.forEach(b=>b.draw(ctx));
+}
+
+// ===================== Controls ===================== //
+function shoot(x, y){
+  if (!state.running || state.paused) return;
+  state.shots++;
+  state.bullets.push(new Bullet(x, H-46));
+  AudioFX.tone(520, .06, 'square');
+}
+
+canvas.addEventListener('click', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width; const x = (e.clientX - rect.left) * scaleX;
+  shoot(x, 0);
+});
+
+canvas.addEventListener('touchstart', (e)=>{
+  const t = e.changedTouches[0]; if (!t) return; e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width; const x = (t.clientX - rect.left) * scaleX;
+  shoot(x, 0);
+}, { passive:false });
+
+window.addEventListener('keydown', (e)=>{
+  if (e.key === 'p' || e.key === 'P') togglePause();
+  if (e.key === 'r' || e.key === 'R') restart();
+  if (e.key === 'm' || e.key === 'M') {
+    const m = AudioFX.toggle();
+    toast(m ? 'Muted' : 'Unmuted');
+  }
+});
+
+// ===================== Flow ===================== //
+function start() {
+  startOverlay.style.display = 'none';
+  gameOverOverlay.style.display = 'none';
+  Object.assign(state, {
+    running: true, paused: false, score: 0, lives: GAME_CONFIG.lives, combo: 1,
+    shots: 0, hits: 0, ineq: chooseRange(), targets: [], bullets: [], lastSpawn: 0,
+  });
+  updateHUD(); resize(); lastT = performance.now(); requestAnimationFrame(loop);
+}
+
+function endGame() {
+  state.running = false; state.paused = false; draw();
+  finalScore.textContent = `Your score: ${state.score}`;
+  summaryIneq.textContent = formatInequality(state.ineq).text;
+  const acc = state.shots ? Math.round(100 * state.hits / state.shots) : 0;
+  summaryAccuracy.textContent = `Accuracy: ${acc}%`;
+  gameOverOverlay.style.display = 'flex';
+  if (WEBHOOK_URL) {
+    fetch(WEBHOOK_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        game: 'range-shooter', score: state.score, accuracy: acc,
+        timestamp: new Date().toISOString(), inequality: state.ineq,
+      })
+    }).catch(()=>{});
+  }
+}
+
+function restart() { start(); }
+function togglePause() {
+  if (!state.running) return; state.paused = !state.paused; toast(state.paused ? 'Paused' : 'Resumed');
+}
+
+// Lightweight toast
+let toastTimeout = null;
+function toast(msg){
+  let el = document.getElementById('toast');
+  if (!el){
+    el = document.createElement('div'); el.id='toast';
+    el.style.position='absolute'; el.style.left='50%'; el.style.top='12px'; el.style.transform='translateX(-50%)';
+    el.style.background='rgba(0,0,0,0.55)'; el.style.color='white'; el.style.padding='8px 12px'; el.style.borderRadius='10px';
+    el.style.border='1px solid rgba(255,255,255,0.2)'; el.style.fontSize='12px'; el.style.backdropFilter='blur(4px)';
+    document.querySelector('.canvas-wrap').appendChild(el);
+  }
+  el.textContent = msg; el.style.opacity='1';
+  clearTimeout(toastTimeout); toastTimeout = setTimeout(()=>{ el.style.opacity='0'; }, 800);
+}
+
+// Buttons
+startBtn.addEventListener('click', start);
+againBtn.addEventListener('click', start);
+pauseBtn.addEventListener('click', togglePause);
+restartBtn.addEventListener('click', restart);
+
+// Init
+updateHUD(); resize();
+</script>
+</body>
+</html>
