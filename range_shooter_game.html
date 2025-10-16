@@ -24,10 +24,7 @@
       --muted: #9ca3af;
       --shadow: 0 10px 30px rgba(0,0,0,0.35);
     }
-    html, body {
-      margin: 0; height: 100%; background: radial-gradient(1200px 800px at 70% -20%, #1a2444 0%, var(--bg) 45%); color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-    }
+    html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px at 70% -20%, #1a2444 0%, var(--bg) 45%); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
     .wrap { display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh; }
     header { display:flex; align-items:center; gap:16px; padding: 14px 18px; background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.0)); border-bottom: 1px solid rgba(255,255,255,0.08); }
     .title { font-size: clamp(18px, 2vw, 22px); font-weight: 700; letter-spacing: .3px; }
@@ -112,7 +109,14 @@
               <span class="pill">R: restart</span>
               <span class="pill">M: mute</span>
             </div>
-            <button class="btn" id="startBtn" onclick="startGameFromButton()">Start</button>
+            <button class="btn" id="startBtn">Start</button>
+          </div>
+        </div>
+        <div class="overlay" id="checkpointOverlay" style="display:none">
+          <div class="center-card">
+            <h2>Checkpoint</h2>
+            <p id="checkpointMsg">Great streak! New challenge loading…</p>
+            <button class="btn" id="continueBtn">Continue</button>
           </div>
         </div>
         <div class="overlay" id="gameOverOverlay" style="display:none">
@@ -135,27 +139,29 @@
 <script>
 // ===================== Teacher/Host Configuration ===================== //
 const GAME_CONFIG = {
-  width: 1280,        // canvas internal width (auto scales to container)
-  height: 720,        // canvas internal height
+  width: 1280,
+  height: 720,
   lives: 3,
-  baseSpeed: 1.8,     // target fall speed (px per frame)
-  spawnEveryMs: 900,  // spawn interval
+  baseSpeed: 1.2,
+  spawnEveryMs: 1200,
   allowDecimals: false,
   minNumber: -20,
   maxNumber: 20,
   pointsGood: 100,
   pointsBad: -75,
-  comboBonus: 0.1,    // per-hit multiplier increment
-  missPenalty: 0.5,   // combo decay on miss
-  maxOnScreen: 9,
+  comboBonus: 0.1,
+  missPenalty: 0.5,
+  maxOnScreen: 7,
   soundVolume: 0.18,
-
-  // Provide fixed, teacher-curated ranges (optional). If empty, ranges randomize.
-  // Each item: { a: number, b: number, leftInclusive: boolean, rightInclusive: boolean }
+  changeAfterGoodShots: 5,
+  goodJobMessages: [
+    "Great streak! New challenge loading…",
+    "Nice work! Catch your breath—next range coming up.",
+    "You’re dialed in! Switching it up…",
+    "Strong accuracy! Let’s try a new target set.",
+    "Awesome! Reset and tackle the next one."
+  ],
   customRanges: [
-    // Example presets — feel free to edit or leave empty for randomized play
-    // { a: -5, b: 3, leftInclusive: true, rightInclusive: false },
-    // { a: 2, b: 9, leftInclusive: false, rightInclusive: true },
   ],
 };
 
@@ -174,10 +180,13 @@ function chooseRange() {
   if (typeRoll < 0.25) type = 'left';
   else if (typeRoll < 0.50) type = 'right';
   else if (typeRoll < 0.75) type = 'outside';
+
+  // If teacher supplied fixed ranges, use one (only for 'between' type)
   if (GAME_CONFIG.customRanges && GAME_CONFIG.customRanges.length && type === 'between') {
     const r = GAME_CONFIG.customRanges[randInt(0, GAME_CONFIG.customRanges.length - 1)];
     return { type, ...r };
   }
+
   let a = rand(GAME_CONFIG.minNumber, GAME_CONFIG.maxNumber - 3);
   let b = rand(a + 2, GAME_CONFIG.maxNumber);
   if (!GAME_CONFIG.allowDecimals) { a = Math.round(a); b = Math.round(b); if (a === b) b += 1; }
@@ -185,19 +194,10 @@ function chooseRange() {
   const leftInclusive = Math.random() < 0.5;
   const rightInclusive = Math.random() < 0.5;
   return { type, a, b, leftInclusive, rightInclusive };
-};
-  }
-  // Randomized inclusive/exclusive endpoints
-  let a = rand(GAME_CONFIG.minNumber, GAME_CONFIG.maxNumber - 3);
-  let b = rand(a + 2, GAME_CONFIG.maxNumber);
-  if (!GAME_CONFIG.allowDecimals) { a = Math.round(a); b = Math.round(b); if (a === b) b += 1; }
-  const leftInclusive = Math.random() < 0.5;
-  const rightInclusive = Math.random() < 0.5;
-  return { a: Math.min(a, b), b: Math.max(a, b), leftInclusive, rightInclusive };
 }
 
 function formatInequality({type='between', a, b, leftInclusive, rightInclusive}) {
-  function br(incl, side) { if (side === 'L') return incl ? '[' : '('; return incl ? ']' : ')'; }
+  function br(incl, side) { return (side === 'L') ? (incl ? '[' : '(') : (incl ? ']' : ')'); }
   let intervalText = '', relationText = '', desc = '';
   if (type === 'between') {
     const L = br(leftInclusive,'L'); const R = br(rightInclusive,'R');
@@ -224,12 +224,6 @@ function formatInequality({type='between', a, b, leftInclusive, rightInclusive})
     desc = `Shoot numbers with x ${leftInclusive ? '≤' : '<'} ${a} OR x ${rightInclusive ? '≥' : '>'} ${b}.`;
   }
   return { intervalText, relationText, desc };
-}${a}, ${b}${R}`;
-  const relationText = `${a} ${leftInclusive ? "≤" : "<"} x ${rightInclusive ? "≤" : "<"} ${b}`;
-  const desc = `Shoot numbers that are ${leftInclusive ? "≥" : ">"} ${a} and ${rightInclusive ? "≤" : "<"} ${b}.`;
-  return { intervalText, relationText, desc };
-} ${a} and ${rightInclusive ? "≤" : "<"} ${b}.`;
-  return { text: `x ∈ ${L}${a}, ${b}${R}`, desc };
 }
 
 function satisfies(n, spec) {
@@ -255,10 +249,11 @@ function satisfies(n, spec) {
 
 // ===================== Simple Audio (beeps) ===================== //
 const AudioFX = (() => {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let ctx = null;
+  try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { ctx = null; }
   let muted = false;
   function tone(freq=440, dur=0.08, type='sine', vol=GAME_CONFIG.soundVolume) {
-    if (muted) return;
+    if (muted || !ctx) return;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = type; o.frequency.value = freq; g.gain.value = vol;
@@ -281,6 +276,7 @@ const state = {
   combo: 1,
   shots: 0,
   hits: 0,
+  hitsSinceChange: 0,
   ineq: chooseRange(),
   targets: [],
   bullets: [],
@@ -308,6 +304,9 @@ const againBtn = document.getElementById('againBtn');
 const finalScore = document.getElementById('finalScore');
 const summaryIneq = document.getElementById('summaryIneq');
 const summaryAccuracy = document.getElementById('summaryAccuracy');
+const checkpointOverlay = document.getElementById('checkpointOverlay');
+const checkpointMsg = document.getElementById('checkpointMsg');
+const continueBtn = document.getElementById('continueBtn');
 
 const pauseBtn = document.getElementById('pauseBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -315,16 +314,6 @@ const restartBtn = document.getElementById('restartBtn');
 function updateHUD() {
   const { intervalText, relationText, desc } = formatInequality(state.ineq);
   ineqText.textContent = intervalText; ineqTextIneq.textContent = relationText; ineqDesc.textContent = desc;
-  scoreEl.textContent = `Score: ${state.score}`;
-  livesEl.textContent = `Lives: ${state.lives}`;
-  comboEl.textContent = `Combo: ${state.combo.toFixed(1)}×`;
-  diffLabel.textContent = GAME_CONFIG.baseSpeed <= 1.4 ? 'Easy' : (GAME_CONFIG.baseSpeed >= 2.4 ? 'Hard' : 'Normal');
-  spawnLabel.textContent = `Every ${GAME_CONFIG.spawnEveryMs} ms`;
-  speedLabel.textContent = `${GAME_CONFIG.baseSpeed.toFixed(1)} px/frame`;
-  numLabel.textContent = `${GAME_CONFIG.minNumber} to ${GAME_CONFIG.maxNumber}`;
-  decLabel.textContent = GAME_CONFIG.allowDecimals ? 'On' : 'Off';
-} = formatInequality(state.ineq);
-  ineqText.textContent = text; ineqDesc.textContent = desc;
   scoreEl.textContent = `Score: ${state.score}`;
   livesEl.textContent = `Lives: ${state.lives}`;
   comboEl.textContent = `Combo: ${state.combo.toFixed(1)}×`;
@@ -420,7 +409,8 @@ function loop(t) {
           const add = Math.round(GAME_CONFIG.pointsGood * state.combo);
           state.score += add; state.combo += GAME_CONFIG.comboBonus; AudioFX.tone(660, .07, 'square');
           state.feedbacks.push(new Feedback(o.x, o.y - 28, `✓ +${add}`, '#4ade80'));
-          if (Math.random() < 0.25) { state.ineq = chooseRange(); updateHUD(); }
+          state.hitsSinceChange++;
+          if (state.hitsSinceChange >= GAME_CONFIG.changeAfterGoodShots) { triggerCheckpoint(); }
         } else {
           state.lives -= 1; state.combo = Math.max(1, state.combo - GAME_CONFIG.missPenalty); AudioFX.tone(180, .12, 'sawtooth');
           state.feedbacks.push(new Feedback(o.x, o.y - 28, '✗ -1 life', '#f87171'));
@@ -510,12 +500,30 @@ window.addEventListener('keydown', (e)=>{
 });
 
 // ===================== Flow ===================== //
+function triggerCheckpoint(){
+  // Change inequality, pause, show message
+  state.ineq = chooseRange();
+  updateHUD();
+  state.hitsSinceChange = 0;
+  state.paused = true;
+  const msgs = GAME_CONFIG.goodJobMessages || ['Great job!'];
+  const msg = msgs[Math.floor(Math.random()*msgs.length)] || 'Great job!';
+  checkpointMsg.textContent = msg;
+  checkpointOverlay.style.display = 'flex';
+}
+function continueAfterCheckpoint(){
+  checkpointOverlay.style.display = 'none';
+  state.paused = false;
+  requestAnimationFrame(loop);
+}
+// ===================== Flow ===================== //
 function start() {
   startOverlay.style.display = 'none';
   gameOverOverlay.style.display = 'none';
+  checkpointOverlay.style.display = 'none';
   Object.assign(state, {
     running: true, paused: false, score: 0, lives: GAME_CONFIG.lives, combo: 1,
-    shots: 0, hits: 0, ineq: chooseRange(), targets: [], bullets: [], lastSpawn: 0,
+    shots: 0, hits: 0, hitsSinceChange: 0, ineq: chooseRange(), targets: [], bullets: [], feedbacks: [], lastSpawn: 0,
   });
   updateHUD(); resize(); lastT = performance.now(); requestAnimationFrame(loop);
 }
@@ -523,7 +531,7 @@ function start() {
 function endGame() {
   state.running = false; state.paused = false; draw();
   finalScore.textContent = `Your score: ${state.score}`;
-  { const f = formatInequality(state.ineq); summaryIneq.textContent = `${f.intervalText}  /  ${f.relationText}`; }
+  const f = formatInequality(state.ineq); summaryIneq.textContent = `${f.intervalText}  /  ${f.relationText}`;
   const acc = state.shots ? Math.round(100 * state.hits / state.shots) : 0;
   summaryAccuracy.textContent = `Accuracy: ${acc}%`;
   gameOverOverlay.style.display = 'flex';
@@ -559,14 +567,68 @@ function toast(msg){
 }
 
 // Buttons
-startBtn.addEventListener('click', start);
-function startGameFromButton(){ start(); }
-againBtn.addEventListener('click', start);
-pauseBtn.addEventListener('click', togglePause);
-restartBtn.addEventListener('click', restart);
+window.addEventListener('DOMContentLoaded', () => {
+  startBtn.addEventListener('click', start);
+  againBtn.addEventListener('click', start);
+  pauseBtn.addEventListener('click', togglePause);
+  restartBtn.addEventListener('click', restart);
+  continueBtn.addEventListener('click', continueAfterCheckpoint);
+});
+window.start = start; // expose for manual triggers if needed
 
 // Init
 updateHUD(); resize();
+
+// ===================== Self-Tests (console) ===================== //
+(function selfTests(){
+  const tests = [];
+  function add(name, fn){ tests.push({name, fn}); }
+  function run(){
+    let pass = 0; const out = [];
+    for (const t of tests){
+      try { if (t.fn() !== false) { pass++; out.push(`✅ ${t.name}`); } else { out.push(`❌ ${t.name}`); } }
+      catch(e){ out.push(`❌ ${t.name} — ${e.message}`); }
+    }
+    console.groupCollapsed(`Range Shooter self-tests: ${pass}/${tests.length} passing`);
+    out.forEach(x=>console.log(x));
+    console.groupEnd();
+  }
+
+  // Between tests
+  add('between: 1 ≤ x < 5 accepts 1 and 4, rejects 5 and 0', ()=>{
+    const spec = {type:'between', a:1, b:5, leftInclusive:true, rightInclusive:false};
+    console.assert(satisfies(1,spec) === true, '1 should pass');
+    console.assert(satisfies(4,spec) === true, '4 should pass');
+    console.assert(satisfies(5,spec) === false, '5 should fail');
+    console.assert(satisfies(0,spec) === false, '0 should fail');
+  });
+
+  // Left tests
+  add('left: x ≤ 3 accepts 3 and -1; rejects 4', ()=>{
+    const spec = {type:'left', b:3, rightInclusive:true};
+    console.assert(satisfies(3,spec) === true, '3 should pass');
+    console.assert(satisfies(-1,spec) === true, '-1 should pass');
+    console.assert(satisfies(4,spec) === false, '4 should fail');
+  });
+
+  // Right tests
+  add('right: x > -2 accepts -1 and 0; rejects -2', ()=>{
+    const spec = {type:'right', a:-2, leftInclusive:false};
+    console.assert(satisfies(-1,spec) === true, '-1 should pass');
+    console.assert(satisfies(0,spec) === true, '0 should pass');
+    console.assert(satisfies(-2,spec) === false, '-2 should fail');
+  });
+
+  // Outside tests
+  add('outside: x ≤ 2 OR x ≥ 8 accepts 2 and 9; rejects 5', ()=>{
+    const spec = {type:'outside', a:2, b:8, leftInclusive:true, rightInclusive:true};
+    console.assert(satisfies(2,spec) === true, '2 should pass');
+    console.assert(satisfies(9,spec) === true, '9 should pass');
+    console.assert(satisfies(5,spec) === false, '5 should fail');
+  });
+
+  run();
+})();
 </script>
 </body>
 </html>
