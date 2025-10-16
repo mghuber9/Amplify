@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Intercept Invaders — Levels: Y-Int • Plot • Intercepts</title>
+<!--
+HOW TO USE
+---------
+• Single-file HTML game. Paste directly into Amplify/Google Sites or open standalone.
+• Levels:
+  1) Y-Intercept — given y = mx + b; click the y-intercept only.
+  2) Plot Line — given y = mx + b; click the y-intercept AND any other lattice point on the line.
+  3) Intercepts — (original) given Ax + By = C; click both x- and y-intercepts. Slower & spaced out.
+• Teacher tweaks in GAME_CONFIG. No external libraries.
+-->
+<style>
+  :root{--bg:#0b1020;--panel:#11162a;--ink:#e5e7eb;--muted:#98a2b3;--acc:#8b5cf6;--good:#22c55e;--bad:#ef4444;--gold:#f59e0b}
+  html,body{margin:0;background:radial-gradient(1200px 800px at 70% -20%, #192247 0%, var(--bg) 45%);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:14px 18px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0));border-bottom:1px solid rgba(255,255,255,0.08)}
+  .title{font-weight:800;letter-spacing:.3px}
+  .hud{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .badge{background:rgba(255,255,255,.06);padding:6px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;font-size:12px}
+  .btn{cursor:pointer;background:linear-gradient(180deg,#1d283a,#121a2b);border:1px solid rgba(255,255,255,.12);color:#dbeafe;padding:8px 12px;border-radius:10px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  main{padding:16px}
+  .board{display:grid;grid-template-columns:320px 1fr;gap:16px}
+  @media (max-width:980px){.board{grid-template-columns:1fr}}
+  .side{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+  .kv{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.08)}
+  .kv:last-child{border-bottom:none}
+  .sel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px}
+  .pill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);border-radius:999px;padding:6px 10px;font-size:12px}
+  .note{color:var(--muted);font-size:12px}
+  .canvas-wrap{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);height:70vh;min-height:460px;overflow:hidden;background:radial-gradient(1200px 500px at 50% -10%, #0e1630 0%, #070b17 60%, #05070e 100%)}
+  canvas{width:100%;height:100%;display:block}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .center-card{pointer-events:auto;background:rgba(9,14,28,.75);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);border-radius:16px;width:min(560px,92%);padding:18px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .toast{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:white;padding:8px 12px;border-radius:10px;backdrop-filter:blur(4px);opacity:0;transition:opacity .15s}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="title">Intercept Invaders — Levels</div>
+      <div class="note">Pick a level: <strong>Y-Intercept</strong> → <strong>Plot Line</strong> → <strong>Intercepts</strong>. Click lattice points on the grid.</div>
+    </div>
+    <div class="hud">
+      <div class="badge" id="score">Score: 0</div>
+      <div class="badge" id="lives">Lives: 3</div>
+      <div class="badge" id="round">Round: 1</div>
+      <div class="badge" id="timer">⏱ —</div>
+      <button class="btn" id="startBtn">Start</button>
+      <button class="btn" id="pauseBtn">Pause</button>
+    </div>
+  </header>
+  <main>
+    <div class="board">
+      <aside class="side">
+        <h3 style="margin:6px 0 10px;color:#c7d2fe;letter-spacing:.3px">Settings</h3>
+        <div class="kv"><span>Level</span><div style="display:flex;gap:8px;align-items:center"><select id="levelSelect" class="sel"><option value="yint">Y-Intercept</option><option value="plot">Plot Line</option><option value="intercepts" selected>Intercepts</option></select><strong id="levelLabel">Intercepts</strong></div></div>
+        <div class="kv"><span>Difficulty</span><div style="display:flex;gap:8px;align-items:center"><select id="diffSelect" class="sel"><option>Easy</option><option selected>Normal</option><option>Hard</option></select><strong id="diffLabel">Normal</strong></div></div>
+        <div class="kv"><span>Timer</span><select id="timerSelect" class="sel"><option value="0">Off</option><option value="60">60s</option><option value="90" selected>90s</option><option value="120">120s</option></select></div>
+        <div class="kv"><span>Sound</span><button class="btn" id="soundBtn">Sound: On</button></div>
+        <p class="note">Y-Intercept: click (0,b). Plot Line: click (0,b) then any other lattice point on the line y=mx+b. Intercepts: click both intercepts for Ax+By=C.</p>
+      </aside>
+      <section class="canvas-wrap">
+        <canvas id="game"></canvas>
+        <div class="overlay" id="startOverlay">
+          <div class="center-card">
+            <h2>Choose a level and press Start</h2>
+            <p id="levelHelp" class="note"></p>
+            <button class="btn" id="startBtn2">Start</button>
+          </div>
+        </div>
+        <div class="overlay" id="gameOverOverlay" style="display:none">
+          <div class="center-card">
+            <h2>Game Over</h2>
+            <p id="finalScore">Your score: 0</p>
+            <p id="finalRounds">Rounds cleared: 0</p>
+            <button class="btn" id="againBtn">Play Again</button>
+          </div>
+        </div>
+        <div class="toast" id="toast">toast</div>
+      </section>
+    </div>
+  </main>
+  <footer style="text-align:center;padding:12px;color:#98a2b3">© Intercept Invaders — free for classroom use</footer>
+</div>
+
+<script>
+// ===================== Config ===================== //
+const GAME_CONFIG = {
+  level: 'intercepts', // 'yint' | 'plot' | 'intercepts'
+  difficulty: 'Normal',
+  lives: 3,
+  gridRange: 6,   // −gridRange..gridRange
+  spawnEveryMs: 2600,
+  fallSpeed: 0.5,
+  timerLimit: 90,
+  soundVolume: 0.2,
+};
+
+const DIFF_PRESETS = {
+  Easy:   { gridRange: 6, spawnEveryMs: 3000, fallSpeed: 0.40 },
+  Normal: { gridRange: 7, spawnEveryMs: 2600, fallSpeed: 0.50 },
+  Hard:   { gridRange: 8, spawnEveryMs: 2400, fallSpeed: 0.60 }, // rebased slower overall
+};
+
+// Extra spacing & lanes for level 'intercepts'
+const LANE_CONFIG = { count: 4, pad: 80 }; // pad between lanes for readability
+
+// ===================== State ===================== //
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+let W=960, H=560;
+
+const state = {
+  running:false,
+  paused:false,
+  tLast:0,
+  lastSpawn:0,
+  lastLane:-1,
+  lives: GAME_CONFIG.lives,
+  score:0,
+  round:1,
+  timerLimit: GAME_CONFIG.timerLimit,
+  timeLeft: GAME_CONFIG.timerLimit,
+  muted:false,
+  invaders:[], // {x,y,fmt, kind:'yint'|'plot'|'intercepts', m,b, xint,yint, hitY, hitSecond, hitX, persistent:[{x,y}], flashLine:{good,age,max}}
+  clicks:[],
+};
+
+// ===================== Audio ===================== //
+const AudioFX = (()=>{ let ctx=null; try{ctx=new (window.AudioContext||window.webkitAudioContext)();}catch{ctx=null;} return { tone(f=440,d=.08,type='sine',v=GAME_CONFIG.soundVolume){ if(!ctx||state.muted) return; const o=ctx.createOscillator(); const g=ctx.createGain(); o.type=type; o.frequency.value=f; g.gain.value=v; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+d); } }; })();
+
+// ===================== DOM ===================== //
+const startBtn = document.getElementById('startBtn');
+const startBtn2 = document.getElementById('startBtn2');
+const pauseBtn = document.getElementById('pauseBtn');
+const againBtn = document.getElementById('againBtn');
+const levelSelect = document.getElementById('levelSelect');
+const levelLabel = document.getElementById('levelLabel');
+const levelHelp = document.getElementById('levelHelp');
+const diffSelect = document.getElementById('diffSelect');
+const diffLabel = document.getElementById('diffLabel');
+const timerSelect = document.getElementById('timerSelect');
+const soundBtn = document.getElementById('soundBtn');
+const scoreEl = document.getElementById('score');
+const livesEl = document.getElementById('lives');
+const roundEl = document.getElementById('round');
+const timerEl = document.getElementById('timer');
+const startOverlay = document.getElementById('startOverlay');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const finalScore = document.getElementById('finalScore');
+const finalRounds = document.getElementById('finalRounds');
+const toastEl = document.getElementById('toast');
+
+// ===================== Helpers ===================== //
+function toast(msg){ toastEl.textContent=msg; toastEl.style.opacity='1'; clearTimeout(toastEl._t); toastEl._t=setTimeout(()=>toastEl.style.opacity='0', 900); }
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function resize(){ const rect=canvas.parentElement.getBoundingClientRect(); const scale=Math.min(rect.width/960, rect.height/560); W=960; H=560; DPR=Math.max(1, Math.min(2, window.devicePixelRatio||1)); canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR); canvas.style.width=`${Math.floor(W*scale)}px`; canvas.style.height=`${Math.floor(H*scale)}px`; ctx.setTransform(DPR,0,0,DPR,0,0); }
+window.addEventListener('resize', resize);
+
+// Grid mapping
+function gridToScreen(x,y){ const r=GAME_CONFIG.gridRange; const pad=40; const sx = pad + (x + r) * ( (W-2*pad) / (2*r) ); const sy = H-40 - (y + r) * ( (H-80) / (2*r) ); return {x:sx,y:sy}; }
+function screenToGrid(px,py){ const r=GAME_CONFIG.gridRange; const pad=40; const x = ((px - pad) / ((W-2*pad)/(2*r))) - r; const y = ((H-40 - py) / ((H-80)/(2*r))) - r; return {x,y}; }
+function snapToInt(v){ return Math.round(v); }
+
+// ===================== Equation Generators ===================== //
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ const t=a%b; a=b; b=t; } return a; }
+
+// Standard form for level 3
+function genEquationStandard(){
+  const r = GAME_CONFIG.gridRange-1;
+  let A=0,B=0,C=0,xint=0,yint=0;
+  for(let tries=0; tries<200; tries++){
+    A = randInt(-5,5); B = randInt(-5,5); if(A===0||B===0) continue;
+    C = randInt(-r*5, r*5); if(C===0) continue;
+    if(C % A !== 0 || C % B !== 0) continue;
+    xint = C/A; yint = C/B; if(!Number.isFinite(xint)||!Number.isFinite(yint)) continue;
+    if(Math.abs(xint) <= r && Math.abs(yint) <= r && Math.abs(xint)>=1 && Math.abs(yint)>=1){
+      const g = gcd(gcd(A,B),C) || 1; A/=g; B/=g; C/=g;
+      const fmt = `${A}x + ${B}y = ${C}`.replace('+ -','- ');
+      return {fmt,xint,yint};
+    }
+  }
+  return {fmt:'2x + y = 6', xint:3, yint:6};
+}
+
+// Slope-intercept for levels 1 & 2 (integers so lattice points exist)
+function genEquationSlope(){
+  const r = GAME_CONFIG.gridRange-1;
+  const m = randInt(-4,4); // integer slope
+  const b = randInt(-r, r);
+  const fmt = m===0 ? `y = ${b}` : (m===1?`y = x${b>=0?` + ${b}`:` - ${Math.abs(b)}`}`: m===-1?`y = -x${b>=0?` + ${b}`:` - ${Math.abs(b)}`}` : `y = ${m}x${b>=0?` + ${b}`:` - ${Math.abs(b)}`}`);
+  return {fmt, m, b};
+}
+
+// Check if integer point lies on y=mx+b exactly
+function onLineInteger(x,y,m,b){ return y === m*x + b; }
+
+// ===================== Game Core ===================== //
+function updateHUD(){ scoreEl.textContent=`Score: ${state.score}`; livesEl.textContent=`Lives: ${state.lives}`; roundEl.textContent=`Round: ${state.round}`; timerEl.textContent = state.timerLimit>0 ? `⏱ ${fmtTime(state.timeLeft)}` : '⏱ —'; diffLabel.textContent = GAME_CONFIG.difficulty; levelLabel.textContent = GAME_CONFIG.level.charAt(0).toUpperCase()+GAME_CONFIG.level.slice(1); updateHelp(); }
+
+function updateHelp(){
+  if(GAME_CONFIG.level==='yint') levelHelp.textContent='Y-Intercept: Click (0,b) for y = mx + b.';
+  else if(GAME_CONFIG.level==='plot') levelHelp.textContent='Plot Line: Click y-intercept (0,b) then any other lattice point on y = mx + b.';
+  else levelHelp.textContent='Intercepts: Click both intercepts (x- and y-) for Ax + By = C.';
+}
+
+function nextSpawnX(){
+  // place invaders in lanes for readability
+  const lanes = LANE_CONFIG.count; const pad = 60; const usableW = W - 2*pad; const laneW = usableW/lanes;
+  let lane = Math.floor(Math.random()*lanes);
+  if (lane === state.lastLane) lane = (lane+1)%lanes; // avoid same lane twice
+  state.lastLane = lane;
+  return pad + laneW*lane + laneW/2;
+}
+
+function spawnInvader(){
+  let inv; const x = nextSpawnX(); const y = -30;
+  if (GAME_CONFIG.level==='intercepts'){
+    const e = genEquationStandard(); inv = {x,y,fmt:e.fmt, kind:'intercepts', xint:e.xint, yint:e.yint, hitX:false, hitY:false};
+  } else if (GAME_CONFIG.level==='plot'){
+    const e = genEquationSlope(); inv = {x,y,fmt:e.fmt, kind:'plot', m:e.m, b:e.b, hitY:false, hitSecond:false};
+  } else { // yint
+    const e = genEquationSlope(); inv = {x,y,fmt:e.fmt, kind:'yint', m:e.m, b:e.b, hitY:false};
+  }
+  if(!('persistent' in inv)) inv.persistent=[];
+  if(!('flashLine' in inv)) inv.flashLine=null;
+  state.invaders.push(inv);
+}
+
+function start(){
+  startOverlay.style.display='none'; gameOverOverlay.style.display='none';
+  state.running=true; state.paused=false; state.lives=GAME_CONFIG.lives; state.score=0; state.round=1; state.invaders=[]; state.clicks=[]; state.timeLeft=GAME_CONFIG.timerLimit; state.lastLane=-1;
+  state.tLast=performance.now(); state.lastSpawn=0; spawnInvader(); requestAnimationFrame(loop);
+  if (state.timerLimit>0){ if(state._interval) clearInterval(state._interval); state._interval=setInterval(()=>{ if(!state.running||state.paused) return; state.timeLeft=Math.max(0,state.timeLeft-1); updateHUD(); if(state.timeLeft===0){ gameOver(); } },1000); }
+  updateHUD();
+}
+
+function gameOver(){ state.running=false; state.paused=false; if(state._interval) clearInterval(state._interval); finalScore.textContent=`Your score: ${state.score}`; finalRounds.textContent=`Rounds cleared: ${state.round-1}`; gameOverOverlay.style.display='flex'; }
+function togglePause(){ if(!state.running) return; state.paused=!state.paused; toast(state.paused?'Paused':'Resumed'); if(!state.paused) requestAnimationFrame(loop); }
+
+function loop(t){ if(!state.running){ return; } if(state.paused){ requestAnimationFrame(loop); return; } const dt = t - state.tLast; state.tLast = t; update(dt); draw(); requestAnimationFrame(loop); }
+
+function update(dt){
+  // slower spawns & movement especially on intercepts level
+  const spawnMs = GAME_CONFIG.spawnEveryMs * (GAME_CONFIG.level==='intercepts'? 1.2 : 1.0);
+  const fall = GAME_CONFIG.fallSpeed * (GAME_CONFIG.level==='intercepts'? 0.85 : 1.0);
+
+  state.lastSpawn += dt; if(state.lastSpawn > spawnMs){ state.lastSpawn = 0; spawnInvader(); state.round++; }
+  for(const inv of state.invaders){ inv.y += fall * (dt/16); }
+
+  // check ground
+  for(const inv of state.invaders){ if(inv.y > H-60 && !isDestroyed(inv)){ state.lives--; AudioFX.tone(160,.12,'sawtooth'); toast('An invader slipped through!'); destroy(inv); } }
+  state.invaders = state.invaders.filter(i=> i.y < H+80 || i.flashLine); // keep while preview showing
+  if(state.lives<=0) gameOver();
+  updateHUD();
+}
+
+function isDestroyed(inv){ if(inv.kind==='yint') return inv.hitY; if(inv.kind==='plot') return inv.hitY && inv.hitSecond; return inv.hitX && inv.hitY; }
+function destroy(inv){ inv.y = H+120; }
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Grid
+  const r = GAME_CONFIG.gridRange; const pad=40; const stepX = (W-2*pad)/(2*r); const stepY=(H-80)/(2*r);
+  ctx.save();
+  ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(pad,40,W-2*pad,H-80);
+  ctx.strokeStyle='rgba(255,255,255,0.10)';
+  for(let i=-r;i<=r;i++){
+    const gx = pad + (i + r)*stepX; ctx.beginPath(); ctx.moveTo(gx,40); ctx.lineTo(gx,H-40); ctx.stroke();
+  }
+  for(let j=-r;j<=r;j++){
+    const gy = H-40 - (j + r)*stepY; ctx.beginPath(); ctx.moveTo(pad,gy); ctx.lineTo(W-pad,gy); ctx.stroke();
+  }
+  // axes
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.4;
+  const yAxis = pad + (0 + r)*stepX; ctx.beginPath(); ctx.moveTo(yAxis,40); ctx.lineTo(yAxis,H-40); ctx.stroke();
+  const xAxis = H-40 - (0 + r)*stepY; ctx.beginPath(); ctx.moveTo(pad,xAxis); ctx.lineTo(W-pad,xAxis); ctx.stroke();
+  
+  // Tick marks & numeric labels (every other integer)
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.font='12px system-ui,-apple-system,Segoe UI,Roboto';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let i=-r;i<=r;i++){
+    const gx = pad + (i + r)*stepX;
+    // x-axis ticks
+    ctx.beginPath(); ctx.moveTo(gx, xAxis-4); ctx.lineTo(gx, xAxis+4); ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.stroke();
+    if(i % 2 === 0 && i !== 0){ ctx.fillText(String(i), gx, xAxis+6); }
+  }
+  // y-axis ticks & labels
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(let j=-r;j<=r;j++){
+    const gy = H-40 - (j + r)*stepY;
+    ctx.beginPath(); ctx.moveTo(yAxis-4, gy); ctx.lineTo(yAxis+4, gy); ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.stroke();
+    if(j % 2 === 0 && j !== 0){ ctx.fillText(String(j), yAxis-6, gy); }
+  }
+  ctx.restore();
+
+  const current = state.invaders.find(v=>!isDestroyed(v));
+
+  // Invaders and overlays
+  for(const inv of state.invaders){
+    const sx = inv.x; const sy = inv.y; ctx.save();
+    const isCurrent = current===inv;
+    ctx.globalAlpha = isCurrent ? 1 : 0.75;
+    ctx.fillStyle='rgba(139,92,246,0.20)'; ctx.strokeStyle= isCurrent ? 'rgba(245,158,11,0.85)' : 'rgba(139,92,246,0.55)';
+    ctx.lineWidth = isCurrent ? 2.2 : 1.2;
+    ctx.beginPath(); ctx.roundRect(sx-130, sy-28, 260, 42, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 16px system-ui,-apple-system,Segoe UI,Roboto'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(inv.fmt, sx, sy-1);
+    if(inv.kind==='yint' || inv.kind==='plot'){
+      if(inv.hitY) { ctx.fillStyle='rgba(34,197,94,.85)'; ctx.fillText('✓ y-intercept', sx, sy+20); }
+      if(inv.kind==='plot' && inv.hitSecond) { ctx.fillStyle='rgba(34,197,94,.85)'; ctx.fillText('✓ second point', sx, sy-20); }
+    } else {
+      if(inv.hitX) { ctx.fillStyle='rgba(34,197,94,.85)'; ctx.fillText('✓ x-intercept', sx, sy-20); }
+      if(inv.hitY) { ctx.fillStyle='rgba(34,197,94,.85)'; ctx.fillText('✓ y-intercept', sx, sy+20); }
+    }
+    ctx.restore();
+
+    // Persistent markers for y-int / plot / intercepts
+    if(inv.persistent && inv.persistent.length){
+      for(const p of inv.persistent){
+        const pt = gridToScreen(p.x,p.y);
+        ctx.save(); ctx.fillStyle='rgba(34,197,94,.95)'; ctx.beginPath(); ctx.arc(pt.x, pt.y, 6, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      }
+    }
+
+    // Flash line preview
+    if(inv.flashLine){
+      const fl = inv.flashLine; fl.age++;
+      const alpha = Math.max(0, 1 - fl.age/fl.max);
+      const color = fl.good ? '34,197,94' : '239,68,68';
+      ctx.save();
+      ctx.strokeStyle = `rgba(${color},${0.8*alpha})`;
+      ctx.lineWidth = 3.2;
+      // compute endpoints across grid using m and b if good, else using the two points slope
+      let mDraw, bDraw; const rloc = GAME_CONFIG.gridRange;
+      if(fl.good && typeof inv.m === 'number' && typeof inv.b === 'number') { mDraw = inv.m; bDraw = inv.b; }
+      else {
+        const dx = fl.x1 - fl.x0; const dy = fl.y1 - fl.y0; if (dx === 0) { mDraw = null; } else { mDraw = dy/dx; bDraw = fl.y0 - mDraw*fl.x0; }
+      }
+      if (mDraw===null){
+        const p1 = gridToScreen(fl.x0, -rloc), p2 = gridToScreen(fl.x0, rloc);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      } else {
+        const p1 = gridToScreen(-rloc, mDraw*(-rloc)+bDraw), p2 = gridToScreen(rloc, mDraw*(rloc)+bDraw);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      }
+      ctx.restore();
+      if(fl.age>=fl.max) inv.flashLine=null;
+    }
+  }
+
+  // Click markers (temporary)
+  for(const c of state.clicks){ c.age+=1; const pt = gridToScreen(c.x,c.y); ctx.save(); ctx.fillStyle=c.good? 'rgba(34,197,94,.9)' : 'rgba(239,68,68,.9)'; ctx.beginPath(); ctx.arc(pt.x, pt.y, 5, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+  state.clicks = state.clicks.filter(c=> c.age<45);
+}
+
+// ===================== Input ===================== //
+canvas.addEventListener('click', e=>{ if(!state.running||state.paused) return; const rect=canvas.getBoundingClientRect(); const px=e.clientX-rect.left; const py=e.clientY-rect.top; const g=screenToGrid(px*(W/rect.width), py*(H/rect.height)); const gx=snapToInt(g.x); const gy=snapToInt(g.y); handleGridClick(gx,gy); });
+
+function handleGridClick(x,y){
+  const inv = state.invaders.find(v=> !isDestroyed(v) ); if(!inv) return;
+  let good=false;
+  if(inv.kind==='yint'){
+    if(x===0 && y===inv.b){
+      inv.hitY=true; good=true; state.score+=150; AudioFX.tone(700,.07,'square'); toast('✓ y-intercept');
+      inv.persistent.push({x:0,y:inv.b});
+      // brief preview just for reinforcement, then clear
+      inv.flashLine = {x0:0,y0:inv.b,x1:1,y1:inv.m+inv.b,good:true,age:0,max:50};
+      destroy(inv);
+    }
+  } else if(inv.kind==='plot'){
+    if(!inv.hitY){
+      if(x===0 && y===inv.b){
+        inv.hitY=true; good=true; state.score+=120; AudioFX.tone(660,.06,'square'); toast('✓ y-intercept');
+        // persist y-int marker to help plot second point (no full line yet — avoid giving away)
+        inv.persistent.push({x:0,y:inv.b});
+        // no flashLine here for plot level
+      }
+    } else if(!inv.hitSecond){
+      // second point — show green if on line, red if not; always preview line (LONGER)
+      const on = onLineInteger(x,y,inv.m,inv.b) && !(x===0 && y===inv.b);
+      // set preview using chosen point and y-intercept
+      inv.flashLine = {x0:0,y0:inv.b,x1:x,y1:y,good:on,age:0,max:150};
+      if(on){
+        inv.hitSecond=true; good=true; state.score+=150; AudioFX.tone(760,.06,'sine'); toast('✓ point on line');
+        // persist second point
+        inv.persistent.push({x,y});
+        destroy(inv);
+      }
+    }
+  } else { // intercepts
+    // record first correct intercept and keep it visible
+    if(y===0 && x===inv.xint && !inv.hitX){
+      inv.hitX=true; good=true; state.score+=110; AudioFX.tone(640,.06,'square'); toast('✓ x-intercept');
+      inv.persistent.push({x:inv.xint,y:0});
+    }
+    else if(x===0 && y===inv.yint && !inv.hitY){
+      inv.hitY=true; good=true; state.score+=110; AudioFX.tone(680,.06,'square'); toast('✓ y-intercept');
+      inv.persistent.push({x:0,y:inv.yint});
+    }
+    // after both are correct, show green line preview then clear
+    if(inv.hitX && inv.hitY){
+      inv.flashLine = {x0:inv.xint,y0:0,x1:0,y1:inv.yint,good:true,age:0,max:150};
+      destroy(inv); state.score+=160; AudioFX.tone(820,.06,'triangle'); toast('Invader destroyed!');
+    }
+  }
+  if(!good){
+    state.lives--; AudioFX.tone(180,.12,'sawtooth'); toast('✗ Incorrect');
+    // If one intercept already chosen, show red preview with chosen wrong point
+    if(inv.kind==='plot' && inv.hitY){ inv.flashLine = {x0:0,y0:inv.b,x1:x,y1:y,good:false,age:0,max:120}; }
+    if(inv.kind==='intercepts'){
+      if(inv.hitX && !(x===0 && y===inv.yint)) inv.flashLine = {x0:inv.xint,y0:0,x1:x,y1:y,good:false,age:0,max:120};
+      else if(inv.hitY && !(y===0 && x===inv.xint)) inv.flashLine = {x0:0,y0:inv.yint,x1:x,y1:y,good:false,age:0,max:120};
+    }
+  }
+  state.clicks.push({x,y,good,age:0}); updateHUD();
+}
+
+// ===================== Time/Format ===================== //
+function fmtTime(s){ const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${String(m).padStart(2,'0')}:${ss}`; }
+
+// ===================== Wiring ===================== //
+startBtn.addEventListener('click', start); startBtn2.addEventListener('click', start); againBtn.addEventListener('click', start); pauseBtn.addEventListener('click', togglePause);
+
+levelSelect.addEventListener('change', ()=>{ GAME_CONFIG.level = levelSelect.value; levelLabel.textContent = levelSelect.options[levelSelect.selectedIndex].text; updateHelp(); toast(`Level: ${levelLabel.textContent}`); });
+
+diffSelect.addEventListener('change', ()=>{ GAME_CONFIG.difficulty = diffSelect.value; const p=DIFF_PRESETS[GAME_CONFIG.difficulty]; if(p){ GAME_CONFIG.gridRange=p.gridRange; GAME_CONFIG.spawnEveryMs=p.spawnEveryMs; GAME_CONFIG.fallSpeed=p.fallSpeed; } diffLabel.textContent=GAME_CONFIG.difficulty; toast(`Difficulty: ${GAME_CONFIG.difficulty}`); });
+
+timerSelect.addEventListener('change', ()=>{ GAME_CONFIG.timerLimit = Number(timerSelect.value); state.timerLimit=GAME_CONFIG.timerLimit; state.timeLeft=state.timerLimit; updateHUD(); });
+
+soundBtn.addEventListener('click', ()=>{ state.muted=!state.muted; soundBtn.textContent = state.muted? 'Sound: Off':'Sound: On'; });
+
+function init(){ resize(); updateHUD(); }
+init();
+
+// ===================== Self Tests (console) ===================== //
+(function selfTests(){
+  const tests=[]; const add=(name,fn)=>tests.push({name,fn});
+  add('genEquationStandard returns integer intercepts', ()=>{ for(let i=0;i<10;i++){ const e=genEquationStandard(); console.assert(Number.isInteger(e.xint)&&Number.isInteger(e.yint),'ints'); } });
+  add('genEquationSlope returns integer m, b', ()=>{ for(let i=0;i<10;i++){ const e=genEquationSlope(); console.assert(Number.isInteger(e.m)&&Number.isInteger(e.b),'ints'); } });
+  add('onLineInteger works for y = 2x + 1', ()=>{ console.assert(onLineInteger(0,1,2,1)===true,'y-int'); console.assert(onLineInteger(1,3,2,1)===true,'(1,3)'); console.assert(onLineInteger(2,5,2,1)===true,'(2,5)'); console.assert(onLineInteger(1,2,2,1)===false,'not on'); });
+  add('Level yint: clicking (0,b) destroys invader', ()=>{ const e={kind:'yint',m:2,b:3,hitY:false,y:10,fmt:'y=2x+3',x:100,persistent:[]}; state.invaders=[e]; handleGridClick(0,3); console.assert(e.hitY===true,'hitY'); console.assert(e.persistent.length===1,'y-int persisted'); });
+  add('Level plot: requires y-int then second point', ()=>{ const e={kind:'plot',m:1,b:-2,hitY:false,hitSecond:false,y:10,fmt:'y=x-2',x:100,persistent:[]}; state.invaders=[e]; handleGridClick(0,-2); handleGridClick(2,0); console.assert(e.hitY&&e.hitSecond,'both hits'); console.assert(e.flashLine && e.flashLine.good===true,'green preview set'); });
+  add('Level plot: incorrect second point does not mark hitSecond', ()=>{ const e={kind:'plot',m:1,b:-2,hitY:false,hitSecond:false,y:10,fmt:'y=x-2',x:100,persistent:[]}; state.invaders=[e]; const prevLives=state.lives; handleGridClick(0,-2); handleGridClick(3,0); console.assert(e.hitSecond===false,'no second'); console.assert(state.lives<=prevLives-1,'life lost'); console.assert(e.flashLine && e.flashLine.good===false,'red preview set'); });
+  add('Level intercepts: first intercept persists; second shows green line', ()=>{ const e={kind:'intercepts',xint:3,yint:6,hitX:false,hitY:false,y:10,fmt:'2x+y=6',x:100,persistent:[]}; state.invaders=[e]; handleGridClick(3,0); console.assert(e.hitX===true && e.persistent.length===1,'x persisted'); handleGridClick(0,6); console.assert(e.hitX&&e.hitY,'both'); console.assert(e.flashLine && e.flashLine.good===true,'green preview set'); });
+  add('Cleanup: invader with flashLine remains until preview ends', ()=>{ const e={kind:'plot',m:2,b:1,hitY:true,hitSecond:true,y:H+200,fmt:'y=2x+1',x:100,persistent:[],flashLine:{x0:0,y0:1,x1:2,y1:5,good:true,age:0,max:5}}; state.invaders=[e]; update(16); console.assert(state.invaders.length===1,'kept while flashing'); for(let i=0;i<6;i++) draw(); update(16); console.assert(state.invaders.length===0 || state.invaders[0].flashLine===null,'removed after flash'); });
+  let pass=0; const out=[]; for(const t of tests){ try{ t.fn(); pass++; out.push('✓ '+t.name);} catch(err){ out.push('✗ '+t.name+' — '+err.message);} }
+  console.groupCollapsed(`Intercept Invaders (levels) self-tests: ${pass}/${tests.length} passing`); out.forEach(x=>console.log(x)); console.groupEnd();
+})();
+</script>
+</body>
+</html>
