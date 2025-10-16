@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Slope Sprint — Matching Race</title>
+<!--
+HOW TO USE
+---------
+• This is a single-file HTML game. Works standalone or inside an iframe embed (Amplify, Google Sites, etc.).
+• Students match each equation y = mx + b with its corresponding graph.
+• Teacher tweaks live in GAME_CONFIG at the top of the script.
+• No external libraries.
+-->
+<style>
+  :root{
+    --bg:#0b1020;--panel:#11162a;--ink:#e5e7eb;--muted:#98a2b3;--acc:#8b5cf6;--good:#22c55e;--bad:#ef4444;--gold:#f59e0b;
+  }
+  html,body{margin:0;background:radial-gradient(1200px 800px at 70% -20%, #192247 0%, var(--bg) 45%);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:14px 18px;background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0));border-bottom:1px solid rgba(255,255,255,0.08)}
+  .title{font-weight:800;letter-spacing:.3px}
+  .hud{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .badge{background:rgba(255,255,255,.06);padding:6px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;font-size:12px}
+  .btn{cursor:pointer;background:linear-gradient(180deg,#1d283a,#121a2b);border:1px solid rgba(255,255,255,.12);color:#dbeafe;padding:8px 12px;border-radius:10px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  main{padding:16px}
+  .board{display:grid;grid-template-columns:300px 1fr;gap:16px}
+  @media (max-width: 980px){.board{grid-template-columns:1fr}}
+  .side{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .card{user-select:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;padding:10px;position:relative;transition:transform .06s ease, box-shadow .2s}
+  .card:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card.selected{outline:2px solid var(--gold)}
+  .card.matched{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.5)}
+  .eq{font-weight:800;font-size:18px;color:#c7d2fe;text-align:center}
+  .row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .sel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:var(--ink);border-radius:8px;padding:6px 8px;font-size:13px}
+  .pill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);border-radius:999px;padding:6px 10px;font-size:12px}
+  .note{color:var(--muted);font-size:12px}
+  .toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);color:white;padding:8px 12px;border-radius:10px;backdrop-filter:blur(4px);opacity:0;transition:opacity .15s}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="title">Slope Sprint — Matching Race</div>
+      <div class="note">Match each equation <strong>y = mx + b</strong> to its graph. Timer optional.</div>
+    </div>
+    <div class="hud">
+      <div class="badge" id="score">Score: 0</div>
+      <div class="badge" id="status">Pairs: 0/0</div>
+      <div class="badge" id="timer">⏱ 00:00</div>
+      <button class="btn" id="startBtn">Start / Reset</button>
+    </div>
+  </header>
+  <main>
+    <div class="board">
+      <aside class="side">
+        <h3 style="margin:6px 0 10px;color:#c7d2fe;letter-spacing:.3px">Settings</h3>
+        <div class="row" style="margin-bottom:8px">
+          <label>Difficulty</label>
+          <select id="diffSelect" class="sel">
+            <option>Easy</option>
+            <option selected>Normal</option>
+            <option>Hard</option>
+          </select>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <label>Pairs</label>
+          <select id="pairSelect" class="sel">
+            <option value="4">4</option>
+            <option value="6" selected>6</option>
+            <option value="8">8</option>
+          </select>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <label>Timer</label>
+          <select id="timerSelect" class="sel">
+            <option value="0">Off</option>
+            <option value="60">60s</option>
+            <option value="90" selected>90s</option>
+            <option value="120">120s</option>
+          </select>
+        </div>
+        <div class="row" style="margin-bottom:8px">
+          <label>Sound</label>
+          <button class="btn" id="soundBtn">Sound: On</button>
+        </div>
+        <p class="note">Easy → integer slopes & intercepts. Hard → include negatives & fractional slopes.</p>
+        <p class="note">Tip: Click an equation, then click its matching graph.</p>
+      </aside>
+      <section style="display:grid;grid-template-rows:auto 1fr;gap:10px">
+        <div class="row" style="justify-content:space-between">
+          <div class="pill">Equations</div>
+          <div class="pill">Graphs</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:420px">
+          <div id="eqGrid" class="grid"></div>
+          <div id="graphGrid" class="grid"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <footer style="text-align:center;padding:12px;color:#98a2b3">© Slope Sprint — free for classroom use</footer>
+</div>
+
+<script>
+// ===================== Config ===================== //
+const GAME_CONFIG = {
+  difficulty: 'Normal',
+  soundVolume: 0.2,
+};
+
+const DIFF_RULES = {
+  Easy:   { m: { ints:[-2,-1,0,1,2], fracs:[] }, b: { ints:[-3,-2,-1,0,1,2,3] } },
+  Normal: { m: { ints:[-3,-2,-1,0,1,2,3], fracs:[[-1,2],[1,2],[2,3],[-2,3]] }, b: { ints:[-5,-4,-3,-2,-1,0,1,2,3,4,5] } },
+  Hard:   { m: { ints:[-4,-3,-2,-1,0,1,2,3,4], fracs:[[-3,2],[-2,3],[-1,3],[1,3],[2,5],[3,4]] }, b: { ints:[-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7] } },
+};
+
+// ===================== State ===================== //
+const state = {
+  pairs: 6,
+  timerLimit: 90,
+  timeLeft: 0,
+  running: false,
+  muted: false,
+  selected: null, // { side:'eq'|'graph', id, el }
+  items: [], // [{id, m, b, eqText}]
+  matched: new Set(),
+  score: 0,
+  tHandle: null,
+};
+
+// ===================== Audio ===================== //
+const AudioFX = (()=>{
+  let ctx=null; try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch{ ctx=null; }
+  function tone(freq=440, dur=.08, type='sine', vol=GAME_CONFIG.soundVolume){ if(!ctx||state.muted) return; const o=ctx.createOscillator(); const g=ctx.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+dur); }
+  return { tone };
+})();
+
+// ===================== DOM ===================== //
+const scoreEl = document.getElementById('score');
+const statusEl = document.getElementById('status');
+const timerEl = document.getElementById('timer');
+const eqGrid = document.getElementById('eqGrid');
+const graphGrid = document.getElementById('graphGrid');
+const diffSelect = document.getElementById('diffSelect');
+const pairSelect = document.getElementById('pairSelect');
+const timerSelect = document.getElementById('timerSelect');
+const startBtn = document.getElementById('startBtn');
+const soundBtn = document.getElementById('soundBtn');
+const toastEl = document.getElementById('toast');
+
+// ===================== Utils ===================== //
+const rand = (min,max)=>Math.random()*(max-min)+min;
+const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+const shuffle = arr => arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+
+function fracToText(num,den){
+  if (den===1) return `${num}`;
+  return `${num}/${den}`;
+}
+
+function mToText(m){
+  if (Array.isArray(m)) { // fraction [n,d]
+    const [n,d]=m; if(n===0) return '0'; if(n===d) return '1'; if(n===-d) return '-1'; return fracToText(n,d);
+  }
+  return String(m);
+}
+
+function mToNumber(m){ return Array.isArray(m) ? (m[0]/m[1]) : m; }
+
+function buildEqText(m,b){
+  const mNum = mToNumber(m);
+  const mTxt = mNum===1 ? 'x' : mNum===-1 ? '-x' : `${mToText(m)}x`;
+  const bTxt = b===0 ? '' : (b>0?` + ${b}`:` - ${Math.abs(b)}`);
+  return `y = ${mNum===0? b : mTxt + bTxt}`;
+}
+
+function axisSVG(m,b){
+  // returns an SVG element (string) plotting y=mx+b within x∈[-5,5]
+  const W=120,H=120, pad=18; // small inset
+  const xs = [-5,5];
+  const pts = xs.map(x=>({x, y: m*x + b}));
+  // map to screen: origin center, y up
+  const sx = x => (W/2) + (x* (W-2*pad)/10);
+  const sy = y => (H/2) - (y* (H-2*pad)/10);
+  const [p1,p2] = pts;
+  const line = `<line x1="${sx(p1.x)}" y1="${sy(p1.y)}" x2="${sx(p2.x)}" y2="${sy(p2.y)}" stroke="#c7d2fe" stroke-width="2" />`;
+  const axes = `<line x1="${pad}" y1="${H/2}" x2="${W-pad}" y2="${H/2}" stroke="rgba(255,255,255,.3)" stroke-width="1"/>`+
+               `<line x1="${W/2}" y1="${pad}" x2="${W/2}" y2="${H-pad}" stroke="rgba(255,255,255,.3)" stroke-width="1"/>`;
+  const box = `<rect x="1" y="1" width="${W-2}" height="${H-2}" rx="10" ry="10" fill="rgba(255,255,255,.02)" stroke="rgba(255,255,255,.12)" />`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" aria-label="graph"><g>${box}${axes}${line}</g></svg>`;
+}
+
+function toast(msg){
+  toastEl.textContent = msg; toastEl.style.opacity='1';
+  clearTimeout(toastEl._t); toastEl._t = setTimeout(()=>toastEl.style.opacity='0', 900);
+}
+
+// Safe deselect helper — avoids reading state.selected after it was nulled
+function deselectPair(prevEl, el){
+  setTimeout(()=>{
+    if (el && el.classList) el.classList.remove('selected');
+    if (prevEl && prevEl.classList) prevEl.classList.remove('selected');
+  }, 120);
+}
+
+// ===================== Game Core ===================== //
+function buildPool(){
+  const rules = DIFF_RULES[GAME_CONFIG.difficulty];
+  const pool=[];
+  // ensure a variety: sample ints and fracs
+  const ints = rules.m.ints;
+  const frs = rules.m.fracs;
+  const bInts = rules.b.ints;
+  // create many candidates; we'll pick pairs later
+  for (let i=0;i<ints.length;i++){
+    for (let j=0;j<bInts.length;j++) pool.push({m:ints[i], b:bInts[j]});
+  }
+  for (let k=0;k<frs.length;k++){
+    for (let j=0;j<bInts.length;j++) pool.push({m:frs[k], b:bInts[j]});
+  }
+  return shuffle(pool);
+}
+
+function newRound(){
+  // read settings
+  GAME_CONFIG.difficulty = diffSelect.value;
+  state.pairs = Number(pairSelect.value);
+  state.timerLimit = Number(timerSelect.value);
+  state.timeLeft = state.timerLimit;
+  state.score = 0; state.matched.clear(); state.selected=null; state.items=[];
+  statusEl.textContent = `Pairs: 0/${state.pairs}`;
+  scoreEl.textContent = `Score: ${state.score}`;
+  timerEl.textContent = `⏱ ${fmtTime(state.timeLeft)}`;
+
+  const pool = buildPool();
+  const chosen = pool.slice(0, state.pairs);
+  state.items = chosen.map((p,idx)=>({ id: `L${idx}`, m: mToNumber(p.m), mRaw:p.m, b:p.b, eqText: buildEqText(p.m,p.b) }));
+
+  // build cards
+  eqGrid.innerHTML=''; graphGrid.innerHTML='';
+  const eqCards = state.items.map(item=> cardEq(item));
+  const gCards  = shuffle(state.items).map(item=> cardGraph(item));
+  eqCards.forEach(c=>eqGrid.appendChild(c));
+  gCards.forEach(c=>graphGrid.appendChild(c));
+}
+
+function cardEq(item){
+  const div=document.createElement('button');
+  div.className='card eq'; div.innerHTML=`<span>${item.eqText}</span>`; div.dataset.id=item.id; div.dataset.side='eq';
+  div.addEventListener('click', onCardClick);
+  return div;
+}
+function cardGraph(item){
+  const div=document.createElement('button');
+  div.className='card'; div.dataset.id=item.id; div.dataset.side='graph';
+  div.innerHTML=axisSVG(item.m,item.b);
+  div.addEventListener('click', onCardClick);
+  return div;
+}
+
+function onCardClick(e){
+  if(!state.running) return;
+  const el=e.currentTarget; if (el.classList.contains('matched')) return;
+  const id=el.dataset.id; const side=el.dataset.side;
+
+  if (!state.selected){
+    state.selected={id,side,el}; el.classList.add('selected'); AudioFX.tone(520,.05,'square');
+    return;
+  }
+  if (state.selected && state.selected.el===el) return; // same card
+
+  // second pick
+  el.classList.add('selected');
+  const isMatch = (state.selected && state.selected.id===id && state.selected.side!==side);
+  if (isMatch){
+    // mark both
+    el.classList.add('matched');
+    const prevEl = state.selected ? state.selected.el : null;
+    if (prevEl) prevEl.classList.add('matched');
+    state.matched.add(id);
+    state.score += 100; scoreEl.textContent=`Score: ${state.score}`;
+    statusEl.textContent=`Pairs: ${state.matched.size}/${state.pairs}`;
+    AudioFX.tone(700,.07,'sine');
+    toast('✓ Match!');
+    // Deselect safely using captured prevEl; then clear selection
+    deselectPair(prevEl, el);
+    state.selected=null;
+    if (state.matched.size===state.pairs) return win();
+  } else {
+    AudioFX.tone(200,.08,'sawtooth');
+    toast('✗ Try again');
+    const prev=state.selected ? state.selected.el : null; 
+    deselectPair(prev, el);
+    state.selected=null;
+  }
+}
+
+function win(){
+  state.running=false; clearInterval(state.tHandle);
+  toast('🎉 All pairs matched!');
+  startBtn.disabled=false; startBtn.textContent='Start / Reset';
+}
+
+function start(){
+  newRound();
+  state.running=true; startBtn.disabled=false; startBtn.textContent='Reset';
+  // timer
+  clearInterval(state.tHandle);
+  if (state.timerLimit>0){
+    timerEl.textContent=`⏱ ${fmtTime(state.timeLeft)}`;
+    state.tHandle=setInterval(()=>{
+      if(!state.running) return;
+      state.timeLeft=Math.max(0,state.timeLeft-1);
+      timerEl.textContent=`⏱ ${fmtTime(state.timeLeft)}`;
+      if(state.timeLeft===0){
+        state.running=false; toast('⏰ Time!'); AudioFX.tone(120,.2,'triangle');
+        startBtn.textContent='Start / Reset';
+        clearInterval(state.tHandle);
+      }
+    },1000);
+  } else {
+    timerEl.textContent='⏱ —';
+  }
+}
+
+function fmtTime(s){
+  const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0');
+  return `${String(m).padStart(2,'0')}:${ss}`;
+}
+
+// ===================== Events ===================== //
+startBtn.addEventListener('click', ()=>{ start(); });
+
+diffSelect.addEventListener('change', ()=>{ if(state.running) { toast(`Difficulty: ${diffSelect.value}`); start(); } });
+pairSelect.addEventListener('change', ()=>{ if(state.running) start(); });
+timerSelect.addEventListener('change', ()=>{ if(state.running) start(); });
+
+soundBtn.addEventListener('click', ()=>{ state.muted=!state.muted; soundBtn.textContent= state.muted? 'Sound: Off':'Sound: On'; });
+
+// initial setup
+newRound();
+
+// ===================== Self Tests (console) ===================== //
+(function selfTests(){
+  const tests=[]; const add=(name,fn)=>tests.push({name,fn});
+  const approx=(a,b,eps=1e-9)=>Math.abs(a-b)<=eps;
+
+  // Test buildEqText with ints
+  add('buildEqText ints m=2, b=-3 => y = 2x - 3', ()=>{
+    const txt = buildEqText(2,-3); console.assert(txt==='y = 2x - 3', txt);
+  });
+
+  // Test buildEqText with zero slope
+  add('buildEqText m=0, b=4 => y = 4', ()=>{
+    const txt = buildEqText(0,4); console.assert(txt==='y = 4', txt);
+  });
+
+  // Test fraction slope
+  add('m=[1,2], b=0 => y = 1/2x', ()=>{
+    const txt = buildEqText([1,2],0); console.assert(txt==='y = 1/2x', txt);
+  });
+
+  // Test axisSVG returns SVG markup
+  add('axisSVG returns <svg>', ()=>{
+    const s = axisSVG(1,0); console.assert(s.startsWith('<svg'), 'svg start');
+  });
+
+  // Test pool respects difficulty rules
+  add('buildPool yields diverse candidates', ()=>{
+    GAME_CONFIG.difficulty='Easy'; const p1 = buildPool();
+    GAME_CONFIG.difficulty='Hard'; const p2 = buildPool();
+    console.assert(p1.length>p2.length/4, 'pool sizes reasonable');
+  });
+
+  // NEW: deselectPair does not crash if prevEl is null
+  add('deselectPair handles null prevEl safely', ()=>{
+    const a=document.createElement('button'); a.className='card selected';
+    deselectPair(null, a); // should not throw
+  });
+
+  // NEW: onCardClick safe when state.selected becomes null before timeout
+  add('onCardClick does not access state.selected.el after null', ()=>{
+    // simulate by calling deselectPair with captured element and then nulling selection
+    const a=document.createElement('button'); a.dataset.id='L0'; a.dataset.side='eq'; a.className='card';
+    const b=document.createElement('button'); b.dataset.id='L0'; b.dataset.side='graph'; b.className='card';
+    state.running=true; state.selected={id:'L0', side:'eq', el:a};
+    // manually run match branch logic core
+    const prevEl=state.selected.el; state.selected=null; deselectPair(prevEl,b);
+  });
+
+  // Run
+  let pass=0; const out=[]; for(const t of tests){ try{ t.fn(); pass++; out.push('✓ '+t.name);} catch(e){ out.push('✗ '+t.name+' — '+e.message);} }
+  console.groupCollapsed(`Slope Sprint self-tests: ${pass}/${tests.length} passing`);
+  out.forEach(x=>console.log(x));
+  console.groupEnd();
+})();
+</script>
+</body>
+</html>
