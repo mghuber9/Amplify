@@ -112,7 +112,7 @@
               <span class="pill">R: restart</span>
               <span class="pill">M: mute</span>
             </div>
-            <button class="btn" id="startBtn">Start</button>
+            <button class="btn" id="startBtn" onclick="startGameFromButton()">Start</button>
           </div>
         </div>
         <div class="overlay" id="gameOverOverlay" style="display:none">
@@ -560,6 +560,7 @@ function toast(msg){
 
 // Buttons
 startBtn.addEventListener('click', start);
+function startGameFromButton(){ start(); }
 againBtn.addEventListener('click', start);
 pauseBtn.addEventListener('click', togglePause);
 restartBtn.addEventListener('click', restart);
