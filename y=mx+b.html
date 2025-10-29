@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lines Practice Path — Interactive</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#0b1224; --ink:#e5e7eb; --mut:#94a3b8;
+    --brand:#22d3ee; --accent:#a78bfa; --good:#34d399; --bad:#f43f5e; --border:#1e293b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1022,#0f172a 25%,#0b1022);color:var(--ink);
+       font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;min-height:100dvh;
+       display:flex;justify-content:center}
+  .app{display:grid;grid-template-columns:280px 1fr;gap:18px;width:min(1200px,100%);padding:18px}
+  .panel{background:rgba(17,24,39,.75);border:1px solid var(--border);border-radius:16px;backdrop-filter:blur(8px);
+         box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .left{padding:16px}
+  .brand{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .logo{width:36px;height:36px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand),var(--accent));
+        border-radius:10px;color:#001018;font-weight:800}
+  .brand h1{font-size:18px;margin:0}
+  .desc{color:var(--mut);font-size:13px;margin:8px 0 14px}
+  .skills{display:flex;flex-direction:column;gap:8px;max-height:calc(100dvh - 200px);overflow:auto;padding-right:4px}
+  .skillItem{border:1px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer;background:#0b1224;
+             display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .skillItem.active{outline:2px solid var(--brand);background:#0a172c}
+  .skillTitle{font-weight:600}
+  .pill{font-size:11px;padding:2px 8px;border-radius:999px;background:#0e1b32;border:1px solid var(--border)}
+  .done{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35);color:#9ef7cf}
+  .main{padding:18px;display:grid;gap:14px}
+  .card{border:1px solid var(--border);border-radius:16px;padding:16px;background:radial-gradient(1200px 600px at 10% -20%,rgba(34,211,238,.05),transparent),#0b1224}
+  h2{margin:0 0 6px;font-size:20px}
+  .mut{color:var(--mut)}
+  .prompt{font-size:18px;margin:8px 0 14px}
+  .io{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type="text"],input[type="number"]{background:#0a1222;border:1px solid var(--border);border-radius:10px;color:var(--ink);padding:10px 12px;min-width:160px}
+  button{background:#0a182b;color:var(--ink);border:1px solid var(--border);padding:10px 14px;border-radius:12px;cursor:pointer;
+         transition:.15s transform ease,.15s background ease,.15s border-color ease}
+  button:hover{transform:translateY(-1px);border-color:#2a3b57}
+  button.primary{background:linear-gradient(135deg,var(--brand),var(--accent));color:#041016;font-weight:700;border:none}
+  button.good{background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.35)}
+  button.bad{background:rgba(244,63,94,.15);border-color:rgba(244,63,94,.35)}
+  button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+  .feedback{min-height:24px;font-weight:600}
+  .feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .stats{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{border:1px solid var(--border);border-radius:999px;padding:6px 10px;color:var(--mut);font-size:12px;background:#0c1a31}
+  .navRow{display:flex;justify-content:space-between;gap:8px}
+  .footer{color:var(--mut);font-size:12px;text-align:center;padding:6px}
+  .kbd{font-family:ui-monospace,Consolas,monospace;background:#0a152a;border:1px solid var(--border);padding:2px 6px;border-radius:6px;font-size:12px}
+  .hr{height:1px;background:linear-gradient(90deg,transparent,#1e293b,transparent);margin:10px 0}
+  .hint{color:#dbeafe;background:#0b1932;border:1px dashed #1e3a8a;padding:8px 10px;border-radius:10px;display:none;white-space:pre-line}
+  .hint.show{display:block}
+  canvas{background:#0a0f1f;border-radius:12px;border:1px solid var(--border);touch-action:none}
+  .eqnPreview{padding:6px 10px;border:1px dashed var(--border);border-radius:10px;background:#0a1528;color:#c7d2fe}
+  a.link{color:#7dd3fc;text-decoration:underline}
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel left">
+      <div class="brand">
+        <div class="logo">AM</div>
+        <div>
+          <h1>Lines Skill Path</h1>
+          <div class="desc">Practice each skill with fresh randomized problems. When you feel good, move on. Progress saves locally.</div>
+        </div>
+      </div>
+      <div class="skills" id="skillList"></div>
+      <div class="hr"></div>
+      <div class="footer">Reset all with <span class="kbd">R</span>. New problem: <span class="kbd">N</span>. Check: <span class="kbd">Enter</span>.</div>
+    </aside>
+
+    <main class="panel main">
+      <div class="card">
+        <h2 id="skillTitle">Loading…</h2>
+        <div class="mut" id="skillSubtitle"></div>
+      </div>
+
+      <div class="card" id="problemCard">
+        <div class="prompt" id="prompt">Generating problem…</div>
+        <div id="viz"></div>
+        <div class="io" id="answerRow"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="hint" id="hintBox"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="stats">
+            <div class="stat">Attempts: <span id="attempts">0</span></div>
+            <div class="stat">Correct: <span id="correct">0</span></div>
+            <div class="stat">Streak: <span id="streak">0</span></div>
+            <div class="stat">Accuracy: <span id="acc">0%</span></div>
+          </div>
+        </div>
+        <div class="navRow" style="margin-top:12px">
+          <button id="prevBtn">◀️ Previous</button>
+          <div style="display:flex;gap:8px">
+            <button id="feelBtn">I feel good — next skill</button>
+            <button id="nextBtn" class="primary">Next ▶️</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script>
+/* ---------- Small helpers ---------- */
+const $ = sel => document.querySelector(sel);
+const fmt = n => Number.isInteger(n) ? String(n) : String(+n.toFixed(3));
+const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+function simplifyFrac(n,d){ if(d<0){n=-n; d=-d} const g=gcd(n,d); return [n/g,d/g]; }
+function parseNumberOrFraction(str){
+  str=str.trim();
+  if(/^[-+]?\d+\/\d+$/.test(str)){let [n,d]=str.split('/').map(Number); if(d===0) return null; let [nn,dd]=simplifyFrac(n,d); return nn/dd;}
+  if(/^[-+]?\d+(\.\d+)?$/.test(str)) return +str;
+  return null;
+}
+
+/* ---------- Graph with labeled ticks ---------- */
+function makeGraph(container, {xmin=-10,xmax=10,ymin=-10,ymax=10,px=420,py=420}={}){
+  container.innerHTML='';
+  const canvas=document.createElement('canvas');
+  canvas.width=px; canvas.height=py; container.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+  const toPx = (x,y)=>[
+    (x - xmin)/(xmax-xmin)*px,
+    py - (y - ymin)/(ymax-ymin)*py
+  ];
+  function drawGrid(){
+    ctx.clearRect(0,0,px,py);
+    // grid lines
+    ctx.lineWidth=1; ctx.strokeStyle='rgba(148,163,184,.25)';
+    for(let x=Math.ceil(xmin); x<=xmax; x++){
+      const [xx]=toPx(x,0);
+      ctx.beginPath(); ctx.moveTo(xx,0); ctx.lineTo(xx,py); ctx.stroke();
+    }
+    for(let y=Math.ceil(ymin); y<=ymax; y++){
+      const [,yy]=toPx(0,y);
+      ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(px,yy); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle='rgba(229,231,235,.9)'; ctx.lineWidth=1.5;
+    const [x0]=toPx(0,0), [,y0]=toPx(0,0);
+    ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(px,y0); ctx.stroke();
+    // labels every other tick
+    ctx.fillStyle='rgba(229,231,235,.9)';
+    ctx.font='12px ui-monospace,Consolas,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    for(let x=Math.ceil(xmin); x<=xmax; x++){
+      if(x===0 || Math.abs(x)%2!==0) continue;
+      const [xx,yy0]=toPx(x,0);
+      ctx.fillText(String(x), xx, y0+2);
+    }
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(let y=Math.ceil(ymin); y<=ymax; y++){
+      if(y===0 || Math.abs(y)%2!==0) continue;
+      const [x00,yy]=toPx(0,y);
+      ctx.fillText(String(y), x0-4, yy);
+    }
+    // origin label
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    const [ox,oy]=toPx(0,0);
+    ctx.fillText('0', ox+3, oy+3);
+  }
+  function drawLine(m,b,{emphasis=false}={}){
+    const pts=[[xmin,m*xmin+b],[xmax,m*xmax+b]];
+    ctx.strokeStyle = emphasis ? 'rgba(34,211,238,1)' : 'rgba(167,139,250,.95)';
+    ctx.lineWidth = emphasis ? 3 : 2.2;
+    ctx.beginPath();
+    let [sx,sy]=toPx(...pts[0]); ctx.moveTo(sx,sy);
+    for(let i=1;i<pts.length;i++){let [pxx,pyy]=toPx(...pts[i]); ctx.lineTo(pxx,pyy);}
+    ctx.stroke();
+  }
+  function drawPoint(x,y,{ghost=false}={}){
+    const [pxx,pyy]=toPx(x,y);
+    ctx.fillStyle=ghost?'rgba(34,211,238,.35)':'rgba(34,211,238,1)';
+    ctx.beginPath(); ctx.arc(pxx,pyy,5,0,Math.PI*2); ctx.fill();
+  }
+  function snapToGrid(client){
+    const rect=canvas.getBoundingClientRect();
+    const cx=client.x-rect.left, cy=client.y-rect.top;
+    const x = xmin + (cx/px)*(xmax-xmin);
+    const y = ymax - (cy/py)*(ymax-ymin);
+    return [Math.round(x), Math.round(y)];
+  }
+  drawGrid();
+  return {canvas,ctx,drawGrid,drawLine,drawPoint,snapToGrid,toPx,range:{xmin,xmax,ymin,ymax}};
+}
+
+/* ---------- App state ---------- */
+const STORAGE_KEY='lines-path-progress-v2';
+let progress = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); }
+
+/* ---------- Generators ---------- */
+function randomNiceLine(){
+  // choose m = p/q with small integers; b integer to keep lattice points visible
+  const p = randInt(-3,3) || 1;
+  const q = randInt(1,3);
+  const [pn,qd]=simplifyFrac(p,q);
+  const m = pn/qd;
+  const b = randInt(-6,6);
+  return {m,b};
+}
+function genGraphLineWithin(){ return randomNiceLine(); }
+
+/* ---------- SKILLS ---------- */
+const SKILLS = [
+  {
+    id:'yint_from_graph',
+    title:'Find y-intercept from a graph',
+    subtitle:'Look where the line crosses the y-axis (x = 0).',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      const {m,b}=genGraphLineWithin();
+      g.drawLine(m,b);
+      $('#prompt').innerHTML = 'What is the y-intercept <b>b</b> of the line?';
+      const input = document.createElement('input'); input.placeholder='b';
+      const btnCheck = mkCheckBtn();
+      const btnNew = mkNewBtn();
+      const btnHint = mkHintBtn(`The y-intercept is where the line crosses the y-axis (x = 0). Read the y-value there.`);
+      setupAnswerRow([input, btnCheck, btnNew, btnHint]);
+      return {
+        check(){
+          const v=parseNumberOrFraction(input.value);
+          return v!==null && Math.abs(v - b) < 1e-6;
+        },
+        solution: `b = ${fmt(b)}`,
+        regenerate(){ return SKILLS[0].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'xint_from_graph',
+    title:'Find x-intercept from a graph',
+    subtitle:'Where the line crosses y = 0.',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      const {m,b}=genGraphLineWithin();
+      g.drawLine(m,b);
+      $('#prompt').innerHTML = 'What is the x-intercept of the line? (Enter the x-value where y = 0)';
+      const input = document.createElement('input'); input.placeholder='x-intercept';
+      const btnCheck = mkCheckBtn();
+      const btnNew = mkNewBtn();
+      const btnHint = mkHintBtn(`Set y = 0 in y = m x + b and solve for x: x = −b/m.`);
+      setupAnswerRow([input, btnCheck, btnNew, btnHint]);
+      const xint = -b/m;
+      return {
+        check(){
+          const v=parseNumberOrFraction(input.value);
+          return v!==null && Math.abs(v - xint) < 1e-6;
+        },
+        solution:`x = ${fmt(xint)}`,
+        regenerate(){ return SKILLS[1].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'slope_from_graph',
+    title:'Find slope from a graph',
+    subtitle:'Rise over run between two lattice points.',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      const {m,b}=genGraphLineWithin();
+      g.drawLine(m,b);
+      $('#prompt').innerHTML = 'What is the slope <b>m</b>? (You may enter a fraction like -2/3)';
+      const input = document.createElement('input'); input.placeholder='m (e.g., 2/3 or -1)';
+      const btnCheck = mkCheckBtn();
+      const btnNew = mkNewBtn();
+      const btnHint = mkHintBtn(`Pick two grid points on the line: m = (y₂−y₁)/(x₂−x₁). Reduce your fraction.`);
+      setupAnswerRow([input, btnCheck, btnNew, btnHint]);
+      return {
+        check(){
+          const v=parseNumberOrFraction(input.value);
+          return v!==null && Math.abs(v - m) < 1e-6;
+        },
+        solution:`m = ${fmt(m)}`,
+        regenerate(){ return SKILLS[2].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'write_eqn_from_graph_boxes',
+    title:'From a graph: fill in m and b',
+    subtitle:'Find slope and y-intercept, then confirm y = (m)x + (b).',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      const {m,b}=genGraphLineWithin();
+      g.drawLine(m,b,{emphasis:true});
+      $('#prompt').innerHTML = 'Find the slope <b>m</b> and y-intercept <b>b</b>, then complete the equation.';
+      const mIn=document.createElement('input'); mIn.placeholder='m';
+      const bIn=document.createElement('input'); bIn.placeholder='b';
+      const preview=document.createElement('div'); preview.className='eqnPreview'; preview.textContent='y = (m)x + (b)';
+      function refresh(){ 
+        const mv=parseNumberOrFraction(mIn.value); const bv=parseNumberOrFraction(bIn.value);
+        preview.textContent = `y = ${mIn.value||'(m)'}x ${ (bIn.value&&String(bIn.value).trim().startsWith('-')) ? '' : '+' } ${bIn.value||'(b)'}`;
+      }
+      mIn.addEventListener('input',refresh); bIn.addEventListener('input',refresh);
+      const btnCheck=mkCheckBtn(), btnNew=mkNewBtn(), btnHint=mkHintBtn('Use rise/run for m. Read b at x=0. Then plug m and b into y = m x + b.');
+      setupAnswerRow([mIn,bIn,btnCheck,btnNew,btnHint,preview]);
+      refresh();
+      return {
+        check(){
+          const mv=parseNumberOrFraction(mIn.value);
+          const bv=parseNumberOrFraction(bIn.value);
+          return mv!==null && bv!==null && Math.abs(mv-m)<1e-6 && Math.abs(bv-b)<1e-6;
+        },
+        solution:`m = ${fmt(m)}, b = ${fmt(b)}  →  y = ${fmt(m)}x ${b>=0?'+':'-'} ${fmt(Math.abs(b))}`,
+        regenerate(){ return SKILLS[3].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'table_find_m_b',
+    title:'From a table: find m and b (with Desmos option)',
+    subtitle:'Use differences or the Texas Desmos testing calculator.',
+    makeProblem(vizEl){
+      const wrap=document.createElement('div'); vizEl.innerHTML=''; vizEl.appendChild(wrap);
+      const {m,b}=randomNiceLine();
+      const xs=[-2,-1,0,1,2,3].sort(()=>Math.random()-0.5).slice(0,4).sort((a,b)=>a-b);
+      const ys=xs.map(x=>m*x+b);
+      const tbl=document.createElement('table');
+      tbl.style.borderCollapse='collapse'; tbl.style.margin='8px 0';
+      function td(txt,head=false){const e=document.createElement(head?'th':'td'); e.textContent=txt; e.style.border='1px solid var(--border)'; e.style.padding='6px 10px'; return e;}
+      const tr1=document.createElement('tr'); tr1.appendChild(td('x',true)); xs.forEach(x=>tr1.appendChild(td(fmt(x))));
+      const tr2=document.createElement('tr'); tr2.appendChild(td('y',true)); ys.forEach(y=>tr2.appendChild(td(fmt(y))));
+      tbl.appendChild(tr1); tbl.appendChild(tr2); wrap.appendChild(tbl);
+
+      const help=document.createElement('div'); help.className='hint show';
+      help.innerHTML =
+`Option A — Differences:
+Pick two rows (x₁,y₁),(x₂,y₂).  m = (y₂−y₁)/(x₂−x₁).  If x=0 is present, read b directly; else use b = y − m x.
+
+Option B — Texas Desmos testing calculator:
+1) <a class="link" href="https://www.desmos.com/testing/texas/graphing" target="_blank" rel="noopener">Open Desmos (Texas testing)</a>
+2) Click the + → Table; enter the x and y pairs
+3) In a new line type: <code>y1 ~ m x1 + b</code>
+4) Desmos reports m (slope) and b (y-intercept).`;
+      wrap.appendChild(help);
+
+      $('#prompt').innerHTML='Given the table, find slope <b>m</b> and y-intercept <b>b</b>.';
+      const mIn=document.createElement('input'); mIn.placeholder='m';
+      const bIn=document.createElement('input'); bIn.placeholder='b';
+      const btnCheck = mkCheckBtn();
+      const btnNew = mkNewBtn();
+      setupAnswerRow([mIn,bIn,btnCheck,btnNew]);
+      return {
+        check(){
+          const mv=parseNumberOrFraction(mIn.value);
+          const bv=parseNumberOrFraction(bIn.value);
+          return mv!==null && bv!==null && Math.abs(mv - m)<1e-6 && Math.abs(bv - b)<1e-6;
+        },
+        solution:`m = ${fmt(m)}, b = ${fmt(b)}`,
+        regenerate(){ return SKILLS[4].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'table_write_equation',
+    title:'From a table: fill in m and b to make the equation',
+    subtitle:'Use differences or Desmos, then complete y = (m)x + (b).',
+    makeProblem(vizEl){
+      const wrap=document.createElement('div'); vizEl.innerHTML=''; vizEl.appendChild(wrap);
+      const {m,b}=randomNiceLine();
+      const xs=[-3,-1,0,1,3].sort(()=>Math.random()-0.5).slice(0,3).sort((a,b)=>a-b);
+      const ys=xs.map(x=>m*x+b);
+      const tbl=document.createElement('table'); tbl.style.borderCollapse='collapse'; tbl.style.margin='8px 0';
+      function td(txt,head=false){const e=document.createElement(head?'th':'td'); e.textContent=txt; e.style.border='1px solid var(--border)'; e.style.padding='6px 10px'; return e;}
+      const tr1=document.createElement('tr'); tr1.appendChild(td('x',true)); xs.forEach(x=>tr1.appendChild(td(fmt(x))));
+      const tr2=document.createElement('tr'); tr2.appendChild(td('y',true)); ys.forEach(y=>tr2.appendChild(td(fmt(y))));
+      tbl.appendChild(tr1); tbl.appendChild(tr2); wrap.appendChild(tbl);
+
+      const help=document.createElement('div'); help.className='hint show';
+      help.innerHTML =
+`Find m and b (differences or Desmos):
+- <a class="link" href="https://www.desmos.com/testing/texas/graphing" target="_blank" rel="noopener">Desmos (Texas)</a> → + → Table → enter pairs → type <code>y1 ~ m x1 + b</code>.
+Then complete the equation.`;
+      wrap.appendChild(help);
+
+      $('#prompt').innerHTML='Write the equation by filling in <b>m</b> and <b>b</b>.';
+      const mIn=document.createElement('input'); mIn.placeholder='m';
+      const bIn=document.createElement('input'); bIn.placeholder='b';
+      const preview=document.createElement('div'); preview.className='eqnPreview'; preview.textContent='y = (m)x + (b)';
+      function refresh(){ 
+        preview.textContent = `y = ${mIn.value||'(m)'}x ${ (bIn.value&&String(bIn.value).trim().startsWith('-')) ? '' : '+' } ${bIn.value||'(b)'}`;
+      }
+      mIn.addEventListener('input',refresh); bIn.addEventListener('input',refresh);
+      const btnCheck=mkCheckBtn(), btnNew=mkNewBtn();
+      setupAnswerRow([mIn,bIn,btnCheck,btnNew,preview]);
+      refresh();
+      return {
+        check(){
+          const mv=parseNumberOrFraction(mIn.value);
+          const bv=parseNumberOrFraction(bIn.value);
+          return mv!==null && bv!==null && Math.abs(mv - m)<1e-6 && Math.abs(bv - b)<1e-6;
+        },
+        solution:`y = ${fmt(m)}x ${b>=0?'+':'-'} ${fmt(Math.abs(b))}`,
+        regenerate(){ return SKILLS[5].makeProblem(vizEl); }
+      };
+    }
+  },
+  {
+    id:'graph_given_equation',
+    title:'Graph the line from an equation',
+    subtitle:'Click any two integer points on the line; we’ll draw it.',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      const {m,b}=genGraphLineWithin();
+      $('#prompt').innerHTML = `Graph <b>y = ${fmt(m)}x ${b>=0?'+':'-'} ${fmt(Math.abs(b))}</b> by clicking two points on the grid.`;
+      const btnCheck=mkCheckBtn(), btnNew=mkNewBtn(), btnHint=mkHintBtn('Find two points: start at the y-intercept b, then use rise/run from slope m. Click both points.');
+      setupAnswerRow([btnCheck,btnNew,btnHint]);
+
+      const picks=[];
+      function onClick(ev){
+        const [x,y]=g.snapToGrid({x:ev.clientX,y:ev.clientY});
+        g.drawPoint(x,y);
+        picks.push([x,y]);
+        if(picks.length>2) picks.shift();
+      }
+      g.canvas.addEventListener('click', onClick);
+
+      return {
+        check(){
+          if(picks.length<2) return false;
+          const [[x1,y1],[x2,y2]] = picks;
+          const ok = Math.abs(y1 - (m*x1+b))<1e-6 && Math.abs(y2 - (m*x2+b))<1e-6;
+          if(ok){ g.drawGrid(); g.drawLine(m,b,{emphasis:true}); g.drawPoint(x1,y1); g.drawPoint(x2,y2); }
+          return ok;
+        },
+        solution:`Any two points on y = ${fmt(m)}x ${b>=0?'+':'-'} ${fmt(Math.abs(b))} (e.g., x=0 → y=${fmt(b)}).`,
+        regenerate(){ return SKILLS[6].makeProblem(vizEl); }
+      };
+    }
+  }
+];
+
+/* ---------- UI wiring ---------- */
+let currentSkillIndex = 0;
+let currentProblem = null;
+let stats = progress.stats || {attempts:0, correct:0, streak:0};
+
+function updateStatsUI(){
+  $('#attempts').textContent=stats.attempts;
+  $('#correct').textContent=stats.correct;
+  $('#streak').textContent=stats.streak;
+  const acc = stats.attempts? Math.round(100*stats.correct/stats.attempts):0;
+  $('#acc').textContent = acc + '%';
+  progress.stats = stats; save();
+}
+
+function mkCheckBtn(){ const b=document.createElement('button'); b.id='checkBtn'; b.textContent='Check'; return b;}
+function mkNewBtn(){ const b=document.createElement('button'); b.id='newBtn'; b.textContent='New Problem'; return b;}
+function mkHintBtn(text){ const b=document.createElement('button'); b.id='hintBtn'; b.textContent='Hint'; b.addEventListener('click',()=>toggleHint(text)); return b;}
+function toggleHint(text){ const box=$('#hintBox'); box.textContent=text; box.classList.toggle('show'); }
+
+function setupAnswerRow(children){
+  const row=$('#answerRow'); row.innerHTML=''; children.forEach(ch=>row.appendChild(ch));
+  $('#feedback').textContent=''; $('#hintBox').classList.remove('show'); $('#hintBox').textContent='';
+  const checkBtn = $('#checkBtn'); if(checkBtn) checkBtn.addEventListener('click', onCheck);
+  const newBtn = $('#newBtn'); if(newBtn) newBtn.addEventListener('click', ()=>loadProblem());
+}
+
+function loadSkill(i){
+  currentSkillIndex = (i+SKILLS.length)%SKILLS.length;
+  const sk = SKILLS[currentSkillIndex];
+  $('#skillTitle').textContent = sk.title;
+  $('#skillSubtitle').textContent = sk.subtitle || '';
+  document.querySelectorAll('.skillItem').forEach((el,idx)=>{ el.classList.toggle('active', idx===currentSkillIndex); });
+  loadProblem();
+  progress.currentSkillIndex=currentSkillIndex; save();
+}
+
+function loadProblem(){
+  const sk = SKILLS[currentSkillIndex];
+  const viz = $('#viz'); viz.innerHTML='';
+  currentProblem = sk.makeProblem(viz);
+}
+
+function onCheck(){
+  if(!currentProblem) return;
+  stats.attempts++; const ok = currentProblem.check();
+  if(ok){ stats.correct++; stats.streak++; $('#feedback').textContent='Correct!'; $('#feedback').className='feedback good'; }
+  else { stats.streak=0; $('#feedback').textContent='Not yet — try again or hit New Problem.'; $('#feedback').className='feedback bad'; }
+  updateStatsUI();
+  if(currentProblem.solution){ $('#feedback').title = 'Solution: ' + currentProblem.solution; }
+}
+
+function buildSidebar(){
+  const list = $('#skillList'); list.innerHTML='';
+  SKILLS.forEach((sk,idx)=>{
+    const item=document.createElement('div'); item.className='skillItem';
+    const left=document.createElement('div');
+    const t=document.createElement('div'); t.className='skillTitle'; t.textContent=sk.title;
+    const s=document.createElement('div'); s.className='mut'; s.textContent=sk.subtitle;
+    left.appendChild(t); left.appendChild(s);
+    const pill=document.createElement('div'); pill.className='pill'; pill.textContent=(progress.done&&progress.done[sk.id])?'Done':'Skill';
+    if(progress.done && progress.done[sk.id]) pill.classList.add('done');
+    item.appendChild(left); item.appendChild(pill);
+    item.addEventListener('click',()=>loadSkill(idx));
+    list.appendChild(item);
+  });
+}
+
+$('#prevBtn').addEventListener('click',()=>loadSkill(currentSkillIndex-1));
+$('#nextBtn').addEventListener('click',()=>loadSkill(currentSkillIndex+1));
+$('#feelBtn').addEventListener('click',()=>{
+  progress.done = progress.done || {}; progress.done[SKILLS[currentSkillIndex].id]=true; save(); buildSidebar(); loadSkill(currentSkillIndex+1);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter') onCheck();
+  if(e.key.toLowerCase()==='n') loadProblem();
+  if(e.key.toLowerCase()==='r'){ if(confirm('Reset all progress?')){ localStorage.removeItem(STORAGE_KEY); progress={}; stats={attempts:0,correct:0,streak:0}; updateStatsUI(); buildSidebar(); loadSkill(0);} }
+});
+
+(function init(){
+  buildSidebar();
+  updateStatsUI();
+  loadSkill(progress.currentSkillIndex || 0);
+})();
+</script>
+</body>
+</html>
