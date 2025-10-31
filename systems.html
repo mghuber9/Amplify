@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Systems of Equations Path — Interactive</title>
+<style>
+  :root{
+    --bg:#dfe8ff;
+    --card:#ffffff;
+    --ink:#0f172a;
+    --mut:#6b7280;
+    --brand:#2563eb;
+    --accent:#f97316;
+    --good:#16a34a;
+    --bad:#dc2626;
+    --border:#cbd5f5;
+    --pill:#eff6ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:radial-gradient(circle at top,#ffffff 0%,#dfe8ff 40%,#c7d7ff 80%);
+    color:var(--ink);
+    font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  .app{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    gap:18px;
+    width:min(1200px,100%);
+    padding:18px;
+  }
+  .panel{
+    background:rgba(255,255,255,.85);
+    border:1px solid rgba(203,213,245,.7);
+    border-radius:16px;
+    backdrop-filter:blur(4px);
+    box-shadow:0 10px 30px rgba(15,23,42,.08);
+  }
+  .left{padding:16px}
+  .brand{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .logo{
+    width:38px;height:38px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--brand),#7dd3fc);
+    border-radius:12px;color:#fff;font-weight:800;font-size:15px;
+  }
+  .brand h1{font-size:18px;margin:0}
+  .desc{color:var(--mut);font-size:13px;margin:8px 0 14px}
+  .skills{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 200px);overflow:auto;padding-right:4px}
+  .skillItem{
+    border:1px solid transparent;
+    border-radius:12px;
+    padding:10px 12px;
+    cursor:pointer;
+    background:rgba(255,255,255,.05);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    transition:.12s ease;
+  }
+  .skillItem:hover{background:rgba(255,255,255,.6)}
+  .skillItem.active{border-color:var(--brand);background:#eff6ff}
+  .skillTitle{font-weight:600}
+  .pill{
+    font-size:11px;padding:2px 8px;border-radius:999px;background:var(--pill);border:1px solid rgba(148,163,184,.35);
+  }
+  .done{background:rgba(22,163,74,.12);border-color:rgba(22,163,74,.35);color:#166534}
+  .main{padding:18px;display:grid;gap:14px}
+  .card{
+    border:1px solid rgba(203,213,245,.6);
+    border-radius:16px;
+    padding:16px;
+    background:radial-gradient(1200px 600px at 10% -20%,rgba(37,99,235,.05),transparent),#fff;
+  }
+  h2{margin:0 0 6px;font-size:20px}
+  .mut{color:var(--mut)}
+  .prompt{font-size:18px;margin:8px 0 14px}
+  .io{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type="text"],input[type="number"]{
+    background:#f8fafc;border:1px solid #d1d5db;border-radius:10px;color:var(--ink);padding:8px 10px;min-width:130px;
+  }
+  button{
+    background:#eff6ff;
+    color:#0f172a;
+    border:1px solid rgba(148,163,184,.6);
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:.12s ease;
+    font-weight:500;
+  }
+  button:hover{background:#dbeafe}
+  button.primary{background:linear-gradient(135deg,var(--brand),#38bdf8);color:white;border:none}
+  button.good{background:rgba(22,163,74,.08);border-color:rgba(22,163,74,.3);color:#166534}
+  button.bad{background:rgba(220,38,38,.08);border-color:rgba(220,38,38,.3);color:#b91c1c}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .feedback{min-height:24px;font-weight:600;margin-top:6px}
+  .feedback.good{color:var(--good)} .feedback.bad{color:var(--bad)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .stats{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{border:1px solid rgba(148,163,184,.25);border-radius:999px;padding:6px 10px;color:var(--mut);font-size:12px;background:#f8fafc}
+  .navRow{display:flex;justify-content:space-between;gap:8px}
+  .footer{color:var(--mut);font-size:12px;text-align:center;padding:6px}
+  .kbd{font-family:ui-monospace,Consolas,monospace;background:#eff6ff;border:1px solid rgba(148,163,184,.35);padding:2px 6px;border-radius:6px;font-size:12px}
+  .hr{height:1px;background:linear-gradient(90deg,transparent,#d1d5db,transparent);margin:10px 0}
+  .hint{color:#0f172a;background:#eef2ff;border:1px dashed #94a3b8;padding:8px 10px;border-radius:10px;display:none;white-space:pre-line}
+  .hint.show{display:block}
+  canvas{background:#f3f6ff;border-radius:12px;border:1px solid #d1d5db;touch-action:none}
+  .eqnPreview{padding:6px 10px;border:1px dashed #d1d5db;border-radius:10px;background:#f8fafc;color:#1f2937}
+  a.link{color:#2563eb;text-decoration:underline}
+  .stepBadge{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid rgba(148,163,184,.4);padding:4px 10px;border-radius:999px;font-size:12px;margin-bottom:4px}
+  .optionRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel left">
+      <div class="brand">
+        <div class="logo">AM</div>
+        <div>
+          <h1>Systems Skill Path</h1>
+          <div class="desc">Solve systems step-by-step. Check each part before moving on. Graph in Desmos when needed.</div>
+        </div>
+      </div>
+      <div class="skills" id="skillList"></div>
+      <div class="hr"></div>
+      <div class="footer">
+        Reset all with <span class="kbd">R</span>. New problem: <span class="kbd">N</span>. Check: <span class="kbd">Enter</span>.
+      </div>
+    </aside>
+
+    <main class="panel main">
+      <div class="card">
+        <h2 id="skillTitle">Loading…</h2>
+        <div class="mut" id="skillSubtitle"></div>
+      </div>
+
+      <div class="card" id="problemCard">
+        <div class="prompt" id="prompt">Generating problem…</div>
+        <div id="viz"></div>
+        <div class="io" id="answerRow"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="hint" id="hintBox"></div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <div class="stats">
+            <div class="stat">Attempts: <span id="attempts">0</span></div>
+            <div class="stat">Correct: <span id="correct">0</span></div>
+            <div class="stat">Streak: <span id="streak">0</span></div>
+            <div class="stat">Accuracy: <span id="acc">0%</span></div>
+          </div>
+        </div>
+        <div class="navRow" style="margin-top:12px">
+          <button id="prevBtn">◀️ Previous</button>
+          <div style="display:flex;gap:8px">
+            <button id="feelBtn">I feel good — next skill</button>
+            <button id="nextBtn" class="primary">Next ▶️</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b]}return a||1};
+function simplifyFrac(n,d){ if(d<0){n=-n;d=-d;} const g=gcd(n,d); return [n/g,d/g]; }
+function parseNumberOrFraction(str){
+  str=str.trim();
+  if(/^[-+]?\d+\/\d+$/.test(str)){let [n,d]=str.split('/').map(Number); if(d===0) return null; let [nn,dd]=simplifyFrac(n,d); return nn/dd;}
+  if(/^[-+]?\d+(\.\d+)?$/.test(str)) return +str;
+  return null;
+}
+const STORAGE_KEY='systems-path-progress-v1';
+let progress = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); }
+
+function makeGraph(container,{xmin=-10,xmax=10,ymin=-10,ymax=10,px=420,py=420}={}){
+  container.innerHTML='';
+  const canvas=document.createElement('canvas');
+  canvas.width=px; canvas.height=py;
+  container.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+  const toPx=(x,y)=>[(x-xmin)/(xmax-xmin)*px, py - (y-ymin)/(ymax-ymin)*py];
+  function drawGrid(){
+    ctx.clearRect(0,0,px,py);
+    ctx.lineWidth=1; ctx.strokeStyle='rgba(148,163,184,.35)';
+    for(let x=Math.ceil(xmin);x<=xmax;x++){
+      const [xx]=toPx(x,0); ctx.beginPath(); ctx.moveTo(xx,0); ctx.lineTo(xx,py); ctx.stroke();
+    }
+    for(let y=Math.ceil(ymin);y<=ymax;y++){
+      const [,yy]=toPx(0,y); ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(px,yy); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle='rgba(15,23,42,.8)'; ctx.lineWidth=1.5;
+    const [x0]=toPx(0,0), [,y0]=toPx(0,0);
+    ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(px,y0); ctx.stroke();
+    // ticks every other
+    ctx.fillStyle='rgba(15,23,42,.7)'; ctx.font='12px ui-monospace,Consolas,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    for(let x=Math.ceil(xmin);x<=xmax;x++){
+      if(x===0 || Math.abs(x)%2!==0) continue;
+      const [xx]=toPx(x,0);
+      ctx.fillText(String(x),xx,y0+2);
+    }
+    ctx.textAlign='right'; ctx.textBaseline='middle';
+    for(let y=Math.ceil(ymin);y<=ymax;y++){
+      if(y===0 || Math.abs(y)%2!==0) continue;
+      const [,yy]=toPx(0,y);
+      ctx.fillText(String(y),x0-4,yy);
+    }
+  }
+  function drawLine(m,b,{color='rgba(37,99,235,1)',emphasis=false}={}){
+    const pts=[[xmin,m*xmin+b],[xmax,m*xmax+b]];
+    ctx.strokeStyle=color;
+    ctx.lineWidth=emphasis?3:2;
+    ctx.beginPath();
+    let [sx,sy]=toPx(...pts[0]);
+    ctx.moveTo(sx,sy);
+    for(let i=1;i<pts.length;i++){
+      let [pxx,pyy]=toPx(...pts[i]);
+      ctx.lineTo(pxx,pyy);
+    }
+    ctx.stroke();
+  }
+  function drawPoint(x,y,{color='rgba(249,115,22,1)'}={}){
+    const [pxx,pyy]=toPx(x,y);
+    ctx.fillStyle=color; ctx.beginPath(); ctx.arc(pxx,pyy,5,0,Math.PI*2); ctx.fill();
+  }
+  function snapToGrid(client){
+    const rect=canvas.getBoundingClientRect();
+    const cx=client.x-rect.left, cy=client.y-rect.top;
+    const x = xmin + (cx/px)*(xmax-xmin);
+    const y = ymax - (cy/py)*(ymax-ymin);
+    return [Math.round(x), Math.round(y)];
+  }
+  drawGrid();
+  return {canvas,ctx,drawGrid,drawLine,drawPoint,snapToGrid,toPx,range:{xmin,xmax,ymin,ymax}};
+}
+
+function mkCheckBtn(){ const b=document.createElement('button'); b.id='checkBtn'; b.textContent='Check'; return b; }
+function mkNewBtn(){ const b=document.createElement('button'); b.id='newBtn'; b.textContent='New Problem'; return b; }
+function mkHelpBtn(text){ const b=document.createElement('button'); b.textContent='Need help?'; b.addEventListener('click',()=>toggleHint(text)); return b;}
+function toggleHint(text){ const box=$('#hintBox'); box.textContent=text; box.classList.toggle('show'); }
+
+function setupAnswerRow(children){
+  const row=$('#answerRow'); row.innerHTML=''; children.forEach(ch=>row.appendChild(ch));
+  $('#feedback').textContent=''; $('#hintBox').classList.remove('show'); $('#hintBox').textContent='';
+  const checkBtn=$('#checkBtn'); if(checkBtn) checkBtn.addEventListener('click', onCheck);
+  const newBtn=$('#newBtn'); if(newBtn) newBtn.addEventListener('click', ()=>loadProblem());
+}
+
+function randomNiceLine(){
+  const slopes=[-3,-2,-1,-0.5,0,0.5,1,2,3];
+  let m=slopes[randInt(0,slopes.length-1)];
+  let b=randInt(-6,6);
+  return {m,b};
+}
+
+/* ---------- SKILLS ---------- */
+let currentSkillIndex=0;
+let currentProblem=null;
+let stats = progress.stats || {attempts:0,correct:0,streak:0};
+
+const SKILLS = [
+  // 0 — read solution off graph
+  {
+    id:'graph_read_solution',
+    title:'1. Read the solution from the graph',
+    subtitle:'Two lines are already graphed. Tell what the solution is.',
+    makeProblem(vizEl){
+      const g=makeGraph(vizEl);
+      // pick two lines that intersect in view OR special cases
+      const mode = Math.random();
+      let answerType='point', solX=0, solY=0;
+      let line1,line2;
+      if(mode<0.7){
+        // normal intersect
+        line1=randomNiceLine();
+        // choose x for intersection
+        solX=randInt(-4,4);
+        solY=line1.m*solX+line1.b;
+        // make line2 through that point with different slope
+        let m2=line1.m;
+        while(m2===line1.m){ m2 = randomNiceLine().m; }
+        const b2 = solY - m2*solX;
+        line2={m:m2,b:b2};
+      }else if(mode<0.85){
+        // parallel
+        line1=randomNiceLine();
+        line2={m:line1.m, b: line1.b + randInt(1,4)};
+        answerType='no_solution';
+      }else{
+        // same line
+        line1=randomNiceLine();
+        line2={m:line1.m, b:line1.b};
+        answerType='infinite';
+      }
+      g.drawLine(line1.m,line1.b,{color:'rgba(37,99,235,1)'});
+      g.drawLine(line2.m,line2.b,{color:'rgba(249,115,22,1)'});
+      if(answerType==='point'){
+        g.drawPoint(solX,solY,{color:'rgba(14,116,144,1)'});
+      }
+
+      $('#prompt').innerHTML='What is the solution to this system? (Where the two lines meet.)';
+
+      const xIn=document.createElement('input'); xIn.placeholder='x';
+      const yIn=document.createElement('input'); yIn.placeholder='y';
+      const btnCheck=mkCheckBtn();
+      const btnNew=mkNewBtn();
+      const btnHelp=mkHelpBtn(`Solution to a system = intersection point.\nIf they never meet → No solution.\nIf they’re the same line → Infinitely many solutions.`);
+      const optWrap=document.createElement('div'); optWrap.className='optionRow';
+      const btnNo=document.createElement('button'); btnNo.textContent='No solution';
+      const btnInf=document.createElement('button'); btnInf.textContent='Infinitely many solutions';
+      optWrap.appendChild(btnNo); optWrap.appendChild(btnInf);
+
+      setupAnswerRow([xIn,yIn,btnCheck,btnNew,btnHelp,optWrap]);
+
+      let chosenSpecial = null;
+      btnNo.addEventListener('click',()=>{chosenSpecial='no_solution'; onCheck();});
+      btnInf.addEventListener('click',()=>{chosenSpecial='infinite'; onCheck();});
+
+      return {
+        check(){
+          if(chosenSpecial){
+            if(chosenSpecial===answerType) return true;
+            return false;
+          }
+          if(answerType!=='point') return false;
+          const xv=parseNumberOrFraction(xIn.value);
+          const yv=parseNumberOrFraction(yIn.value);
+          if(xv===null || yv===null) return false;
+          return Math.abs(xv-solX)<1e-6 && Math.abs(yv-solY)<1e-6;
+        },
+        solution: (answerType==='point') ? `(${solX}, ${solY})` : (answerType==='no_solution' ? 'No solution' : 'Infinitely many solutions'),
+        regenerate(){ return SKILLS[0].makeProblem(vizEl); }
+      };
+    }
+  },
+  // 1 — given equations → graph in desmos → solution
+  {
+    id:'desmos_given_eqns',
+    title:'2. Graph both in Desmos → tell the solution',
+    subtitle:'We give you the two equations. You graph them.',
+    makeProblem(vizEl){
+      vizEl.innerHTML='';
+      const wrap=document.createElement('div');
+      vizEl.appendChild(wrap);
+      const {m:m1,b:b1}=randomNiceLine();
+      let {m:m2,b:b2}=randomNiceLine();
+      // avoid same line too often
+      if(Math.abs(m1-m2)<1e-6 && Math.abs(b1-b2)<1e-6){ b2 += 2; }
+
+      const p = document.createElement('div');
+      p.innerHTML = `
+      <div class="stepBadge">Step: Graph both</div>
+      <p>Graph these in <a class="link" href="https://www.desmos.com/testing/texas/graphing" target="_blank" rel="noopener">Texas Desmos (opens in new tab)</a>:</p>
+      <p>1) <code>y = ${m1}x ${b1>=0?'+':''}${b1}</code><br>2) <code>y = ${m2}x ${b2>=0?'+':''}${b2}</code></p>
+      `;
+      wrap.appendChild(p);
+
+      $('#prompt').innerHTML='After you graph both, what is the solution (the intersection point)?';
+
+      // compute intersection
+      let solType='point', solX=0, solY=0;
+      if(Math.abs(m1-m2)<1e-6){
+        if(Math.abs(b1-b2)<1e-6) solType='infinite';
+        else solType='no_solution';
+      }else{
+        solX=(b2-b1)/(m1-m2);
+        solY=m1*solX+b1;
+      }
+
+      const xIn=document.createElement('input'); xIn.placeholder='x';
+      const yIn=document.createElement('input'); yIn.placeholder='y';
+      const btnCheck=mkCheckBtn();
+      const btnNew=mkNewBtn();
+      const btnHelp=mkHelpBtn(`In Desmos: type both equations. Tap the point where they cross. That ordered pair is the solution.`);
+
+      const optWrap=document.createElement('div'); optWrap.className='optionRow';
+      const btnNo=document.createElement('button'); btnNo.textContent='No solution';
+      const btnInf=document.createElement('button'); btnInf.textContent='Infinitely many solutions';
+      optWrap.appendChild(btnNo); optWrap.appendChild(btnInf);
+
+      setupAnswerRow([xIn,yIn,btnCheck,btnNew,btnHelp,optWrap]);
+
+      let chosenSpecial=null;
+      btnNo.addEventListener('click',()=>{chosenSpecial='no_solution'; onCheck();});
+      btnInf.addEventListener('click',()=>{chosenSpecial='infinite'; onCheck();});
+
+      return {
+        check(){
+          if(chosenSpecial){
+            if(chosenSpecial===solType) return true;
+            return false;
+          }
+          if(solType!=='point') return false;
+          const xv=parseNumberOrFraction(xIn.value);
+          const yv=parseNumberOrFraction(yIn.value);
+          if(xv===null||yv===null) return false;
+          return Math.abs(xv-solX)<1e-6 && Math.abs(yv-solY)<1e-6;
+        },
+        solution: (solType==='point')?`(${+solX.toFixed(3)}, ${+solY.toFixed(3)})`:(solType==='no_solution'?'No solution':'Infinitely many solutions'),
+        regenerate(){ return SKILLS[1].makeProblem(vizEl); }
+      };
+    }
+  },
+  // 2 — given m,b for 2 lines → write eqns → solve
+  {
+    id:'from_mb_build_then_solve',
+    title:'3. Given m and b → write both → solve',
+    subtitle:'Fill in y = mx + b for each line, then tell the solution.',
+    makeProblem(vizEl){
+      vizEl.innerHTML='';
+      const wrap=document.createElement('div'); vizEl.appendChild(wrap);
+      const l1=randomNiceLine();
+      let l2=randomNiceLine();
+      if(Math.random()<0.25) l2.m = l1.m; // let them see parallel sometimes
+      const eqn1Div=document.createElement('div');
+      eqn1Div.innerHTML=`<div class="stepBadge">Step 1 of 3</div>Line 1 has slope m₁ = <b>${l1.m}</b> and y-int b₁ = <b>${l1.b}</b>. Fill in the equation.`;
+      wrap.appendChild(eqn1Div);
+      const m1In=document.createElement('input'); m1In.placeholder='m₁';
+      const b1In=document.createElement('input'); b1In.placeholder='b₁';
+      const prev1=document.createElement('div'); prev1.className='eqnPreview'; prev1.textContent='y = (m₁)x + (b₁)';
+      function refresh1(){
+        prev1.textContent=`y = ${m1In.value||'(m₁)'}x ${ (b1In.value && b1In.value.trim().startsWith('-')) ? '' : '+' } ${b1In.value||'(b₁)'}`;
+      }
+      m1In.addEventListener('input',refresh1); b1In.addEventListener('input',refresh1);
+      const btnCheck=mkCheckBtn();
+      const btnNew=mkNewBtn();
+      const btnHelp=mkHelpBtn('Equation of a line from slope m and y-intercept b is: y = m x + b.');
+      setupAnswerRow([m1In,b1In,btnCheck,btnNew,btnHelp,prev1]);
+
+      // we will store step
+      let step=1;
+      let solType='point', solX=0, solY=0;
+      // precompute intersection
+      if(Math.abs(l1.m - l2.m)<1e-6){
+        if(Math.abs(l1.b - l2.b)<1e-6) solType='infinite';
+        else solType='no_solution';
+      }else{
+        solX = (l2.b - l1.b)/(l1.m - l2.m);
+        solY = l1.m*solX + l1.b;
+      }
+
+      return {
+        check(){
+          if(step===1){
+            const mv=parseNumberOrFraction(m1In.value);
+            const bv=parseNumberOrFraction(b1In.value);
+            if(mv!==null && bv!==null && Math.abs(mv-l1.m)<1e-6 && Math.abs(bv-l1.b)<1e-6){
+              // move to step 2
+              step=2;
+              $('#feedback').textContent='Nice! Now do line 2.'; $('#feedback').className='feedback good';
+              // render step 2
+              const eqn2Div=document.createElement('div');
+              eqn2Div.style.marginTop='10px';
+              eqn2Div.innerHTML=`<div class="stepBadge">Step 2 of 3</div>Line 2 has slope m₂ = <b>${l2.m}</b> and y-int b₂ = <b>${l2.b}</b>.`;
+              wrap.appendChild(eqn2Div);
+              const m2In=document.createElement('input'); m2In.placeholder='m₂';
+              const b2In=document.createElement('input'); b2In.placeholder='b₂';
+              const prev2=document.createElement('div'); prev2.className='eqnPreview'; prev2.textContent='y = (m₂)x + (b₂)';
+              function refresh2(){
+                prev2.textContent=`y = ${m2In.value||'(m₂)'}x ${ (b2In.value && b2In.value.trim().startsWith('-')) ? '' : '+' } ${b2In.value||'(b₂)'}`;
+              }
+              m2In.addEventListener('input',refresh2); b2In.addEventListener('input',refresh2);
+              setupAnswerRow([m2In,b2In,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Use y = m x + b again.'),prev2]);
+              // replace currentProblem check to step 2
+              currentProblem = {
+                check(){
+                  const mv2=parseNumberOrFraction(m2In.value);
+                  const bv2=parseNumberOrFraction(b2In.value);
+                  if(mv2!==null && bv2!==null && Math.abs(mv2-l2.m)<1e-6 && Math.abs(bv2-l2.b)<1e-6){
+                    // move to step 3
+                    const finalDiv=document.createElement('div');
+                    finalDiv.style.marginTop='10px';
+                    finalDiv.innerHTML=`<div class="stepBadge">Step 3 of 3</div>Graph both in <a class="link" href="https://www.desmos.com/testing/texas/graphing" target="_blank" rel="noopener">Texas Desmos</a> and tell the solution.`;
+                    wrap.appendChild(finalDiv);
+                    const xIn=document.createElement('input'); xIn.placeholder='x';
+                    const yIn=document.createElement('input'); yIn.placeholder='y';
+                    const opt=document.createElement('div'); opt.className='optionRow';
+                    const btnNo=document.createElement('button'); btnNo.textContent='No solution';
+                    const btnInf=document.createElement('button'); btnInf.textContent='Infinitely many solutions';
+                    opt.appendChild(btnNo); opt.appendChild(btnInf);
+                    setupAnswerRow([xIn,yIn,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Plot both. Tap intersection.'),opt]);
+                    let chosen=null;
+                    btnNo.addEventListener('click',()=>{chosen='no_solution'; onCheck();});
+                    btnInf.addEventListener('click',()=>{chosen='infinite'; onCheck();});
+                    currentProblem = {
+                      check(){
+                        if(chosen){
+                          return chosen===solType;
+                        }
+                        if(solType!=='point') return false;
+                        const xv=parseNumberOrFraction(xIn.value);
+                        const yv=parseNumberOrFraction(yIn.value);
+                        if(xv===null||yv===null) return false;
+                        return Math.abs(xv-solX)<1e-6 && Math.abs(yv-solY)<1e-6;
+                      },
+                      solution:(solType==='point')?`(${+solX.toFixed(3)}, ${+solY.toFixed(3)})`:(solType==='no_solution'?'No solution':'Infinitely many solutions'),
+                      regenerate(){ return SKILLS[2].makeProblem(vizEl); }
+                    };
+                    $('#feedback').textContent='Great! Now find the solution.'; $('#feedback').className='feedback good';
+                    return true;
+                  }else{
+                    return false;
+                  }
+                },
+                solution:`Line 2: y = ${l2.m}x ${l2.b>=0?'+':''}${l2.b}`,
+                regenerate(){ return SKILLS[2].makeProblem(vizEl); }
+              };
+              return true;
+            }else{
+              return false;
+            }
+          }
+          return false;
+        },
+        solution:`Line 1: y = ${l1.m}x ${l1.b>=0?'+':''}${l1.b}`,
+        regenerate(){ return SKILLS[2].makeProblem(vizEl); }
+      };
+    }
+  },
+  // 3 — real world
+  {
+    id:'real_world_systems',
+    title:'4. Real-world → write 2 equations → solve',
+    subtitle:'Identify variables, find m and b for each, then solve.',
+    makeProblem(vizEl){
+      vizEl.innerHTML='';
+      const wrap=document.createElement('div'); vizEl.appendChild(wrap);
+      // simple template: two gyms
+      const aStart=randInt(0,30); // fee
+      const aRate=randInt(10,25);
+      const bStart=randInt(0,30);
+      const bRate=randInt(10,25);
+      const story=document.createElement('div');
+      story.innerHTML=`<p>Two plans:</p>
+      <ul>
+        <li>Plan A: start-up fee $${aStart} and $${aRate} per month</li>
+        <li>Plan B: start-up fee $${bStart} and $${bRate} per month</li>
+      </ul>
+      <p>After how many months will the total cost be the same?</p>`;
+      wrap.appendChild(story);
+
+      $('#prompt').innerHTML='Let’s build the system piece by piece.';
+
+      // step 1: variable meaning
+      const xIn=document.createElement('input'); xIn.placeholder='x = ?';
+      const yIn=document.createElement('input'); yIn.placeholder='y = ?';
+      const btnCheck=mkCheckBtn();
+      const btnNew=mkNewBtn();
+      const btnHelp=mkHelpBtn('Usually: x = number of months, y = total cost.');
+      setupAnswerRow([xIn,yIn,btnCheck,btnNew,btnHelp]);
+      let step=1;
+
+      // actual equations
+      const m1=aRate, b1=aStart;
+      const m2=bRate, b2=bStart;
+      // intersection (months, total)
+      let solType='point', solX=null, solY=null;
+      if(Math.abs(m1-m2)<1e-6){
+        if(Math.abs(b1-b2)<1e-6){ solType='infinite'; }
+        else solType='no_solution';
+      }else{
+        solX=(b2-b1)/(m1-m2);
+        solY=m1*solX+b1;
+      }
+
+      return {
+        check(){
+          if(step===1){
+            const okX = xIn.value.toLowerCase().includes('month');
+            const okY = yIn.value.toLowerCase().includes('cost') || yIn.value.toLowerCase().includes('$');
+            if(okX && okY){
+              step=2;
+              $('#feedback').textContent='Good! Now find m and b for Plan A.'; $('#feedback').className='feedback good';
+              const d2=document.createElement('div'); d2.innerHTML='<div class="stepBadge">Step 2 of 4</div>Plan A: y = m₁x + b₁';
+              wrap.appendChild(d2);
+              const mA=document.createElement('input'); mA.placeholder='m₁ (rate/month)';
+              const bA=document.createElement('input'); bA.placeholder='b₁ (start-up)';
+              setupAnswerRow([mA,bA,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Rate = monthly cost. Start-up = y-intercept (when x=0).')]);
+              currentProblem = {
+                check(){
+                  const mv=parseNumberOrFraction(mA.value);
+                  const bv=parseNumberOrFraction(bA.value);
+                  if(mv===m1 && bv===b1){
+                    // step 3
+                    const d3=document.createElement('div'); d3.innerHTML='<div class="stepBadge">Step 3 of 4</div>Plan B: y = m₂x + b₂';
+                    wrap.appendChild(d3);
+                    const mB=document.createElement('input'); mB.placeholder='m₂';
+                    const bB=document.createElement('input'); bB.placeholder='b₂';
+                    setupAnswerRow([mB,bB,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Do the same for Plan B.')]);
+                    currentProblem = {
+                      check(){
+                        const mv2=parseNumberOrFraction(mB.value);
+                        const bv2=parseNumberOrFraction(bB.value);
+                        if(mv2===m2 && bv2===b2){
+                          // step 4
+                          const d4=document.createElement('div');
+                          d4.innerHTML='<div class="stepBadge">Step 4 of 4</div>Graph both in Desmos and tell the solution (months, total cost).';
+                          wrap.appendChild(d4);
+                          const xx=document.createElement('input'); xx.placeholder='months (x)';
+                          const yy=document.createElement('input'); yy.placeholder='cost (y)';
+                          const opt=document.createElement('div'); opt.className='optionRow';
+                          const btnNo=document.createElement('button'); btnNo.textContent='No solution';
+                          const btnInf=document.createElement('button'); btnInf.textContent='Infinitely many';
+                          opt.appendChild(btnNo); opt.appendChild(btnInf);
+                          setupAnswerRow([xx,yy,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Plot y = '+m1+'x + '+b1+' and y = '+m2+'x + '+b2+'. Find intersection.'),opt]);
+                          let chosen=null;
+                          btnNo.addEventListener('click',()=>{chosen='no_solution'; onCheck();});
+                          btnInf.addEventListener('click',()=>{chosen='infinite'; onCheck();});
+                          currentProblem = {
+                            check(){
+                              if(chosen){
+                                return chosen===solType;
+                              }
+                              if(solType!=='point') return false;
+                              const xv=parseNumberOrFraction(xx.value);
+                              const yv=parseNumberOrFraction(yy.value);
+                              if(xv===null||yv===null) return false;
+                              return Math.abs(xv-solX)<1e-6 && Math.abs(yv-solY)<1e-6;
+                            },
+                            solution:(solType==='point')?`(${+solX.toFixed(2)}, $${+solY.toFixed(2)})`:(solType==='no_solution'?'No solution':'Infinitely many solutions'),
+                            regenerate(){ return SKILLS[3].makeProblem(vizEl); }
+                          };
+                          $('#feedback').textContent='Great! Now solve it.'; $('#feedback').className='feedback good';
+                          return true;
+                        }else return false;
+                      },
+                      solution:`Plan B: y = ${m2}x + ${b2}`,
+                      regenerate(){ return SKILLS[3].makeProblem(vizEl); }
+                    };
+                    return true;
+                  } else return false;
+                },
+                solution:`Plan A: y = ${m1}x + ${b1}`,
+                regenerate(){ return SKILLS[3].makeProblem(vizEl); }
+              };
+              return true;
+            } else {
+              return false;
+            }
+          }
+          return false;
+        },
+        solution:`x = months, y = total cost`,
+        regenerate(){ return SKILLS[3].makeProblem(vizEl); }
+      };
+    }
+  },
+  // 5 — from two tables
+  {
+    id:'two_tables_desmos',
+    title:'5. From two tables → write equations → solve',
+    subtitle:'Use Desmos table & y1 ~ m x1 + b to find each line.',
+    makeProblem(vizEl){
+      vizEl.innerHTML='';
+      const wrap=document.createElement('div'); vizEl.appendChild(wrap);
+      // generate two nice lines
+      const L1=randomNiceLine();
+      let L2=randomNiceLine();
+      if(Math.random()<0.2) L2.m = L1.m; // allow parallel case
+      // pick x values
+      const xs1=[-2,-1,0,1,2,3].sort(()=>Math.random()-0.5).slice(0,4).sort((a,b)=>a-b);
+      const ys1=xs1.map(x=>L1.m*x+L1.b);
+      const xs2=[-3,-1,0,2,4].sort(()=>Math.random()-0.5).slice(0,4).sort((a,b)=>a-b);
+      const ys2=xs2.map(x=>L2.m*x+L2.b);
+
+      const h=document.createElement('div');
+      h.innerHTML=`<p>Enter these into <a class="link" href="https://www.desmos.com/testing/texas/graphing" target="_blank" rel="noopener">Texas Desmos</a> as two tables. Then on a new line type <code>y1 ~ m x1 + b</code> for EACH table to get the equation.</p>`;
+      wrap.appendChild(h);
+
+      function makeTable(xs,ys,label){
+        const tbl=document.createElement('table');
+        tbl.style.borderCollapse='collapse'; tbl.style.margin='6px 0';
+        function td(txt,head=false){const e=document.createElement(head?'th':'td'); e.textContent=txt; e.style.border='1px solid #d1d5db'; e.style.padding='4px 8px'; return e;}
+        const tr1=document.createElement('tr'); tr1.appendChild(td(label+' x',true)); xs.forEach(x=>tr1.appendChild(td(x)));
+        const tr2=document.createElement('tr'); tr2.appendChild(td(label+' y',true)); ys.forEach(y=>tr2.appendChild(td(y)));
+        tbl.appendChild(tr1); tbl.appendChild(tr2);
+        return tbl;
+      }
+      wrap.appendChild(makeTable(xs1,ys1,'1'));
+      wrap.appendChild(makeTable(xs2,ys2,'2'));
+
+      $('#prompt').innerHTML='Use Desmos to find m and b for BOTH lines, then tell the solution.';
+
+      // Step 1: line 1 m,b
+      const m1In=document.createElement('input'); m1In.placeholder='Line 1: m';
+      const b1In=document.createElement('input'); b1In.placeholder='Line 1: b';
+      const btnCheck=mkCheckBtn();
+      const btnNew=mkNewBtn();
+      const btnHelp=mkHelpBtn(`In Desmos:\n1) + → Table → enter x1, y1 from Table 1\n2) New line: y1 ~ m x1 + b\n3) Read off m and b`);
+      setupAnswerRow([m1In,b1In,btnCheck,btnNew,btnHelp]);
+
+      // intersection
+      let solType='point', solX=0, solY=0;
+      if(Math.abs(L1.m - L2.m)<1e-6){
+        if(Math.abs(L1.b - L2.b)<1e-6) solType='infinite';
+        else solType='no_solution';
+      }else{
+        solX = (L2.b - L1.b)/(L1.m - L2.m);
+        solY = L1.m*solX + L1.b;
+      }
+
+      return {
+        check(){
+          const mv=parseNumberOrFraction(m1In.value);
+          const bv=parseNumberOrFraction(b1In.value);
+          if(mv!==null && bv!==null && Math.abs(mv - L1.m)<1e-6 && Math.abs(bv - L1.b)<1e-6){
+            // step 2
+            $('#feedback').textContent='Good — now do Line 2.'; $('#feedback').className='feedback good';
+            const m2In=document.createElement('input'); m2In.placeholder='Line 2: m';
+            const b2In=document.createElement('input'); b2In.placeholder='Line 2: b';
+            setupAnswerRow([m2In,b2In,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Do the same in Desmos for the second table.')]);
+            currentProblem = {
+              check(){
+                const mv2=parseNumberOrFraction(m2In.value);
+                const bv2=parseNumberOrFraction(b2In.value);
+                if(mv2!==null && bv2!==null && Math.abs(mv2 - L2.m)<1e-6 && Math.abs(bv2 - L2.b)<1e-6){
+                  // final step: solution
+                  $('#feedback').textContent='Nice! Now tell me the solution to the system.'; $('#feedback').className='feedback good';
+                  const xIn=document.createElement('input'); xIn.placeholder='x';
+                  const yIn=document.createElement('input'); yIn.placeholder='y';
+                  const opt=document.createElement('div'); opt.className='optionRow';
+                  const btnNo=document.createElement('button'); btnNo.textContent='No solution';
+                  const btnInf=document.createElement('button'); btnInf.textContent='Infinitely many solutions';
+                  opt.appendChild(btnNo); opt.appendChild(btnInf);
+                  setupAnswerRow([xIn,yIn,$('#checkBtn'),$('#newBtn'),mkHelpBtn('Plot both equations in Desmos. Tap the intersection.'),opt]);
+                  let chosen=null;
+                  btnNo.addEventListener('click',()=>{chosen='no_solution'; onCheck();});
+                  btnInf.addEventListener('click',()=>{chosen='infinite'; onCheck();});
+                  currentProblem = {
+                    check(){
+                      if(chosen){
+                        return chosen===solType;
+                      }
+                      if(solType!=='point') return false;
+                      const xv=parseNumberOrFraction(xIn.value);
+                      const yv=parseNumberOrFraction(yIn.value);
+                      if(xv===null||yv===null) return false;
+                      return Math.abs(xv-solX)<1e-6 && Math.abs(yv-solY)<1e-6;
+                    },
+                    solution:(solType==='point')?`(${+solX.toFixed(3)}, ${+solY.toFixed(3)})`:(solType==='no_solution'?'No solution':'Infinitely many solutions'),
+                    regenerate(){ return SKILLS[5].makeProblem(vizEl); }
+                  };
+                  return true;
+                } else return false;
+              },
+              solution:`Line 2: y = ${L2.m}x ${L2.b>=0?'+':''}${L2.b}`,
+              regenerate(){ return SKILLS[5].makeProblem(vizEl); }
+            };
+            return true;
+          } else return false;
+        },
+        solution:`Line 1: y = ${L1.m}x ${L1.b>=0?'+':''}${L1.b}`,
+        regenerate(){ return SKILLS[5].makeProblem(vizEl); }
+      };
+    }
+  }
+];
+
+/* ---------- UI wiring ---------- */
+function updateStatsUI(){
+  $('#attempts').textContent=stats.attempts;
+  $('#correct').textContent=stats.correct;
+  $('#streak').textContent=stats.streak;
+  const acc = stats.attempts? Math.round(100*stats.correct/stats.attempts):0;
+  $('#acc').textContent = acc + '%';
+  progress.stats = stats; save();
+}
+function buildSidebar(){
+  const list=$('#skillList'); list.innerHTML='';
+  SKILLS.forEach((sk,idx)=>{
+    const item=document.createElement('div'); item.className='skillItem';
+    const left=document.createElement('div');
+    const t=document.createElement('div'); t.className='skillTitle'; t.textContent=sk.title;
+    const s=document.createElement('div'); s.className='mut'; s.textContent=sk.subtitle;
+    left.appendChild(t); left.appendChild(s);
+    const pill=document.createElement('div'); pill.className='pill'; pill.textContent=(progress.done && progress.done[sk.id])?'Done':'Skill';
+    if(progress.done && progress.done[sk.id]) pill.classList.add('done');
+    item.appendChild(left); item.appendChild(pill);
+    item.addEventListener('click',()=>loadSkill(idx));
+    list.appendChild(item);
+  });
+}
+function loadSkill(i){
+  currentSkillIndex = (i+SKILLS.length)%SKILLS.length;
+  const sk=SKILLS[currentSkillIndex];
+  $('#skillTitle').textContent=sk.title;
+  $('#skillSubtitle').textContent=sk.subtitle||'';
+  document.querySelectorAll('.skillItem').forEach((el,idx)=>{ el.classList.toggle('active',idx===currentSkillIndex); });
+  loadProblem();
+  progress.currentSkillIndex=currentSkillIndex; save();
+}
+function loadProblem(){
+  const sk=SKILLS[currentSkillIndex];
+  const viz=$('#viz'); viz.innerHTML='';
+  currentProblem = sk.makeProblem(viz);
+}
+function onCheck(){
+  if(!currentProblem) return;
+  stats.attempts++;
+  const ok=currentProblem.check();
+  if(ok){
+    stats.correct++; stats.streak++;
+    $('#feedback').textContent = $('#feedback').textContent || 'Correct!';
+    $('#feedback').className='feedback good';
+  }else{
+    stats.streak=0;
+    if(!$('#feedback').textContent){ $('#feedback').textContent='Not yet — check your work or use a help button.'; }
+    $('#feedback').className='feedback bad';
+  }
+  updateStatsUI();
+  if(currentProblem.solution){ $('#feedback').title='Solution: '+currentProblem.solution; }
+}
+
+$('#prevBtn').addEventListener('click',()=>loadSkill(currentSkillIndex-1));
+$('#nextBtn').addEventListener('click',()=>loadSkill(currentSkillIndex+1));
+$('#feelBtn').addEventListener('click',()=>{
+  progress.done = progress.done || {}; progress.done[SKILLS[currentSkillIndex].id]=true; save(); buildSidebar(); loadSkill(currentSkillIndex+1);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter') onCheck();
+  if(e.key.toLowerCase()==='n') loadProblem();
+  if(e.key.toLowerCase()==='r'){
+    if(confirm('Reset all progress?')){
+      localStorage.removeItem(STORAGE_KEY);
+      progress={};
+      stats={attempts:0,correct:0,streak:0};
+      updateStatsUI();
+      buildSidebar();
+      loadSkill(0);
+    }
+  }
+});
+
+(function init(){
+  buildSidebar();
+  updateStatsUI();
+  loadSkill(progress.currentSkillIndex || 0);
+})();
+</script>
+</body>
+</html>
