@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parabola Arcade: Range Runner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef3ff;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .game-box {
+      max-width: 980px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 34px;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #444;
+      margin-bottom: 14px;
+    }
+
+    #topBar {
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      flex-wrap: wrap;
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 14px;
+    }
+
+    #timerWrap {
+      max-width: 720px;
+      height: 18px;
+      margin: 0 auto 18px;
+      background: #ddd;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    #timerBar {
+      height: 100%;
+      width: 100%;
+      background: #6aa9ff;
+      transition: width 0.1s linear;
+    }
+
+    canvas {
+      border: 1px solid #999;
+      background: white;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto 18px;
+    }
+
+    #prompt {
+      font-size: 30px;
+      font-weight: bold;
+      margin: 10px 0 18px;
+    }
+
+    #gates {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto 18px;
+    }
+
+    .gate {
+      min-height: 110px;
+      border: 2px solid #7c7c7c;
+      border-radius: 18px;
+      background: #f8f8f8;
+      cursor: pointer;
+      font-size: 28px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      transition: transform 0.12s ease, background 0.12s ease;
+    }
+
+    .gate:hover {
+      transform: translateY(-2px);
+      background: #f0f0f0;
+    }
+
+    .gate.correct {
+      background: #d9f2d9;
+      border-color: #3a8f3a;
+    }
+
+    .gate.wrong {
+      background: #f8d7da;
+      border-color: #b04a57;
+    }
+
+    .gate:disabled {
+      cursor: default;
+    }
+
+    #feedback {
+      min-height: 34px;
+      font-size: 24px;
+      font-weight: bold;
+      margin: 10px 0 16px;
+    }
+
+    #nextBtn, #restartBtn, #startBtn {
+      padding: 14px 24px;
+      font-size: 22px;
+      border: 1px solid #888;
+      border-radius: 12px;
+      background: #f7f7f7;
+      cursor: pointer;
+      min-width: 190px;
+    }
+
+    #nextBtn:hover, #restartBtn:hover, #startBtn:hover {
+      background: #ececec;
+    }
+
+    #nextBtn, #restartBtn {
+      display: none;
+    }
+
+    #instructions {
+      max-width: 800px;
+      margin: 0 auto 20px;
+      font-size: 18px;
+      line-height: 1.4;
+      color: #333;
+    }
+
+    @media (max-width: 800px) {
+      #gates {
+        grid-template-columns: 1fr;
+      }
+      .gate {
+        min-height: 90px;
+        font-size: 24px;
+      }
+      #prompt {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-box">
+    <h1>Parabola Arcade: Range Runner</h1>
+    <div class="subtitle">Choose the correct gate before time runs out.</div>
+
+    <div id="instructions">
+      You will see a quadratic graph. Pick the correct <strong>domain</strong> or <strong>range</strong>.
+      Some graphs continue forever, some stop at endpoints, and some have arrows.
+    </div>
+
+    <div id="topBar">
+      <div>Round: <span id="roundNum">0</span>/12</div>
+      <div>Score: <span id="scoreNum">0</span></div>
+      <div>Streak: <span id="streakNum">0</span></div>
+      <div>Lives: <span id="livesNum">3</span></div>
+    </div>
+
+    <div id="timerWrap">
+      <div id="timerBar"></div>
+    </div>
+
+    <canvas id="graph" width="760" height="430"></canvas>
+
+    <div id="prompt">Press Start</div>
+
+    <div id="gates"></div>
+
+    <div id="feedback"></div>
+
+    <button id="startBtn">Start Game</button>
+    <button id="nextBtn">Next Round</button>
+    <button id="restartBtn">Play Again</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("graph");
+    const ctx = canvas.getContext("2d");
+
+    const roundNum = document.getElementById("roundNum");
+    const scoreNum = document.getElementById("scoreNum");
+    const streakNum = document.getElementById("streakNum");
+    const livesNum = document.getElementById("livesNum");
+    const timerBar = document.getElementById("timerBar");
+    const promptEl = document.getElementById("prompt");
+    const gatesEl = document.getElementById("gates");
+    const feedbackEl = document.getElementById("feedback");
+    const startBtn = document.getElementById("startBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const instructionsEl = document.getElementById("instructions");
+
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const SCALE = 30;
+    const ORIGIN_X = WIDTH / 2;
+    const ORIGIN_Y = HEIGHT / 2 + 5;
+    const MARGIN = 18;
+    const TOTAL_ROUNDS = 12;
+    const ROUND_TIME = 10000;
+
+    let round = 0;
+    let score = 0;
+    let streak = 0;
+    let lives = 3;
+    let answered = false;
+    let currentCorrect = "";
+    let currentData = null;
+    let timerId = null;
+    let startTime = 0;
+
+    function toCanvasX(x) {
+      return ORIGIN_X + x * SCALE;
+    }
+
+    function toCanvasY(y) {
+      return ORIGIN_Y - y * SCALE;
+    }
+
+    function f(a, h, k, x) {
+      return a * (x - h) * (x - h) + k;
+    }
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function choice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function unique(arr) {
+      return [...new Set(arr)];
+    }
+
+    function pointVisible(x, y) {
+      const px = toCanvasX(x);
+      const py = toCanvasY(y);
+      return px >= MARGIN && px <= WIDTH - MARGIN && py >= MARGIN && py <= HEIGHT - MARGIN;
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#ddd";
+
+      for (let x = -12; x <= 12; x++) {
+        const px = toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, HEIGHT);
+        ctx.stroke();
+      }
+
+      for (let y = -6; y <= 6; y++) {
+        const py = toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(0, py);
+        ctx.lineTo(WIDTH, py);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(0, ORIGIN_Y);
+      ctx.lineTo(WIDTH, ORIGIN_Y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(ORIGIN_X, 0);
+      ctx.lineTo(ORIGIN_X, HEIGHT);
+      ctx.stroke();
+
+      ctx.fillStyle = "#222";
+      ctx.font = "16px Arial";
+
+      for (let x = -12; x <= 12; x++) {
+        const px = toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, ORIGIN_Y - 5);
+        ctx.lineTo(px, ORIGIN_Y + 5);
+        ctx.stroke();
+        if (x !== 0) ctx.fillText(x, px - 8, ORIGIN_Y + 21);
+      }
+
+      for (let y = -6; y <= 6; y++) {
+        const py = toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(ORIGIN_X - 5, py);
+        ctx.lineTo(ORIGIN_X + 5, py);
+        ctx.stroke();
+        if (y !== 0) ctx.fillText(y, ORIGIN_X + 10, py + 5);
+      }
+
+      ctx.fillText("0", ORIGIN_X + 8, ORIGIN_Y + 21);
+      ctx.fillText("x", WIDTH - 18, ORIGIN_Y - 10);
+      ctx.fillText("y", ORIGIN_X + 10, 20);
+    }
+
+    function drawOpenCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(toCanvasX(x), toCanvasY(y), 7, 0, Math.PI * 2);
+      ctx.fillStyle = "white";
+      ctx.fill();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawClosedCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(toCanvasX(x), toCanvasY(y), 7, 0, Math.PI * 2);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+
+    function drawArrowHead(x1, y1, x2, y2) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const headLength = 13;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle - Math.PI / 6),
+        y2 - headLength * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle + Math.PI / 6),
+        y2 - headLength * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.stroke();
+    }
+
+    function drawCurveSegment(data) {
+      const { a, h, k, xMin, xMax, leftType, rightType } = data;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+
+      const points = [];
+      for (let x = xMin; x <= xMax; x += 0.02) {
+        const y = f(a, h, k, x);
+        const px = toCanvasX(x);
+        const py = toCanvasY(y);
+
+        points.push({
+          x, y, px, py,
+          visible: px >= MARGIN && px <= WIDTH - MARGIN && py >= MARGIN && py <= HEIGHT - MARGIN
+        });
+      }
+
+      ctx.beginPath();
+      let drawing = false;
+
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (p.visible) {
+          if (!drawing) {
+            ctx.moveTo(p.px, p.py);
+            drawing = true;
+          } else {
+            ctx.lineTo(p.px, p.py);
+          }
+        } else {
+          drawing = false;
+        }
+      }
+      ctx.stroke();
+
+      const yLeft = f(a, h, k, xMin);
+      const yRight = f(a, h, k, xMax);
+
+      if (leftType === "open" && pointVisible(xMin, yLeft)) drawOpenCircle(xMin, yLeft);
+      if (leftType === "closed" && pointVisible(xMin, yLeft)) drawClosedCircle(xMin, yLeft);
+      if (rightType === "open" && pointVisible(xMax, yRight)) drawOpenCircle(xMax, yRight);
+      if (rightType === "closed" && pointVisible(xMax, yRight)) drawClosedCircle(xMax, yRight);
+
+      let firstVisibleIndex = -1;
+      let lastVisibleIndex = -1;
+
+      for (let i = 0; i < points.length; i++) {
+        if (points[i].visible) {
+          firstVisibleIndex = i;
+          break;
+        }
+      }
+
+      for (let i = points.length - 1; i >= 0; i--) {
+        if (points[i].visible) {
+          lastVisibleIndex = i;
+          break;
+        }
+      }
+
+      if (leftType === "arrow" && firstVisibleIndex > 0) {
+        const tip = points[firstVisibleIndex];
+        const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+        drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+      }
+
+      if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+        const tip = points[lastVisibleIndex];
+        const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+        drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+      }
+    }
+
+    function domainText(data) {
+      const { xMin, xMax, leftType, rightType } = data;
+
+      if (leftType === "arrow" && rightType === "arrow") return "All Real Numbers";
+      if (leftType === "arrow") return rightType === "closed" ? `x ≤ ${xMax}` : `x < ${xMax}`;
+      if (rightType === "arrow") return leftType === "closed" ? `x ≥ ${xMin}` : `x > ${xMin}`;
+
+      const leftSymbol = leftType === "closed" ? "≤" : "<";
+      const rightSymbol = rightType === "closed" ? "≤" : "<";
+      return `${xMin} ${leftSymbol} x ${rightSymbol} ${xMax}`;
+    }
+
+    function rangeText(data) {
+      const { a, h, k, xMin, xMax, leftType, rightType } = data;
+
+      if (leftType === "arrow" && rightType === "arrow") {
+        return a > 0 ? `y ≥ ${k}` : `y ≤ ${k}`;
+      }
+
+      const testPoints = [xMin, xMax];
+      if (h >= xMin && h <= xMax) testPoints.push(h);
+
+      const yVals = testPoints.map((x) => {
+        let included = true;
+        if (x === xMin && leftType === "open") included = false;
+        if (x === xMax && rightType === "open") included = false;
+        if (x === h) included = true;
+
+        return {
+          x: x,
+          y: f(a, h, k, x),
+          included: included
+        };
+      });
+
+      const ys = yVals.map((p) => p.y);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      if (a > 0) {
+        const point = yVals.find((p) => p.y === minY);
+        return point && point.included ? `y ≥ ${minY}` : `y > ${minY}`;
+      } else {
+        const point = yVals.find((p) => p.y === maxY);
+        return point && point.included ? `y ≤ ${maxY}` : `y < ${maxY}`;
+      }
+    }
+
+    function endpointVisible(x, a, h, k) {
+      const y = f(a, h, k, x);
+      return pointVisible(x, y);
+    }
+
+    function generateData() {
+      while (true) {
+        const type = choice(["full", "segment", "rayLeft", "rayRight"]);
+        const a = choice([1, -1]);
+        const h = randInt(-3, 3);
+        let k;
+
+        if (a === 1) {
+          k = randInt(-4, -1);
+        } else {
+          k = randInt(1, 4);
+        }
+
+        if (type === "full") {
+          return {
+            a, h, k,
+            xMin: -12,
+            xMax: 12,
+            leftType: "arrow",
+            rightType: "arrow"
+          };
+        }
+
+        if (type === "segment") {
+          const xMin = randInt(-8, -2);
+          const xMax = randInt(2, 8);
+          const leftType = choice(["open", "closed"]);
+          const rightType = choice(["open", "closed"]);
+
+          if (!endpointVisible(xMin, a, h, k)) continue;
+          if (!endpointVisible(xMax, a, h, k)) continue;
+
+          return {
+            a, h, k,
+            xMin, xMax,
+            leftType, rightType
+          };
+        }
+
+        if (type === "rayLeft") {
+          const xMax = randInt(1, 8);
+          const rightType = choice(["open", "closed"]);
+
+          if (!endpointVisible(xMax, a, h, k)) continue;
+
+          return {
+            a, h, k,
+            xMin: -12,
+            xMax,
+            leftType: "arrow",
+            rightType
+          };
+        }
+
+        if (type === "rayRight") {
+          const xMin = randInt(-8, -1);
+          const leftType = choice(["open", "closed"]);
+
+          if (!endpointVisible(xMin, a, h, k)) continue;
+
+          return {
+            a, h, k,
+            xMin,
+            xMax: 12,
+            leftType,
+            rightType: "arrow"
+          };
+        }
+      }
+    }
+
+    function buildChoices(data, askType) {
+      const correct = askType === "domain" ? domainText(data) : rangeText(data);
+      let wrong = [];
+
+      if (askType === "domain") {
+        if (correct === "All Real Numbers") {
+          wrong = [
+            `x > ${data.k}`,
+            `y ${data.a > 0 ? "≥" : "≤"} ${data.k}`,
+            `${data.xMin} < x < ${data.xMax}`
+          ];
+        } else if (data.leftType === "arrow") {
+          wrong = [
+            "All Real Numbers",
+            `x ${data.rightType === "closed" ? "<" : "≤"} ${data.xMax}`,
+            `y > ${data.k}`
+          ];
+        } else if (data.rightType === "arrow") {
+          wrong = [
+            "All Real Numbers",
+            `x ${data.leftType === "closed" ? ">" : "≥"} ${data.xMin}`,
+            `x > ${data.k}`
+          ];
+        } else {
+          const leftWrong = data.leftType === "closed" ? "<" : "≤";
+          const rightWrong = data.rightType === "closed" ? "<" : "≤";
+          wrong = [
+            `${data.xMin} ${leftWrong} x ${rightWrong} ${data.xMax}`,
+            `${data.xMin} < y < ${data.xMax}`,
+            `x > ${data.k}`
+          ];
+        }
+      } else {
+        if (correct.startsWith("y ≥")) {
+          const val = correct.split("≥")[1].trim();
+          wrong = [`y > ${val}`, `y ≤ ${val}`, "All Real Numbers"];
+        } else if (correct.startsWith("y >")) {
+          const val = correct.split(">")[1].trim();
+          wrong = [`y ≥ ${val}`, `y ≤ ${val}`, "All Real Numbers"];
+        } else if (correct.startsWith("y ≤")) {
+          const val = correct.split("≤")[1].trim();
+          wrong = [`y < ${val}`, `y ≥ ${val}`, "All Real Numbers"];
+        } else if (correct.startsWith("y <")) {
+          const val = correct.split("<")[1].trim();
+          wrong = [`y ≤ ${val}`, `y ≥ ${val}`, "All Real Numbers"];
+        } else {
+          wrong = [`x ≥ ${data.h}`, `x ≤ ${data.h}`, "All Real Numbers"];
+        }
+      }
+
+      let options = unique([correct, ...wrong]);
+      while (options.length > 3) {
+        options = options.slice(0, 3);
+      }
+
+      return {
+        correct,
+        options: shuffle(options)
+      };
+    }
+
+    function clearTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function startTimer() {
+      clearTimer();
+      startTime = Date.now();
+
+      timerId = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, ROUND_TIME - elapsed);
+        const percent = (remaining / ROUND_TIME) * 100;
+        timerBar.style.width = percent + "%";
+
+        if (remaining <= 0) {
+          clearTimer();
+          timeUp();
+        }
+      }, 60);
+    }
+
+    function disableGates() {
+      const gates = document.querySelectorAll(".gate");
+      gates.forEach(g => g.disabled = true);
+    }
+
+    function showCorrectGate() {
+      const gates = document.querySelectorAll(".gate");
+      gates.forEach(g => {
+        if (g.textContent === currentCorrect) {
+          g.classList.add("correct");
+        }
+      });
+    }
+
+    function handleChoice(button, selected) {
+      if (answered) return;
+      answered = true;
+      clearTimer();
+      disableGates();
+      showCorrectGate();
+
+      if (selected === currentCorrect) {
+        score++;
+        streak++;
+        button.classList.add("correct");
+        feedbackEl.textContent = "Nice! You chose the correct gate.";
+        feedbackEl.style.color = "#2c7a2c";
+      } else {
+        lives--;
+        streak = 0;
+        button.classList.add("wrong");
+        feedbackEl.textContent = `Not quite. Correct answer: ${currentCorrect}`;
+        feedbackEl.style.color = "#b00020";
+      }
+
+      updateTopBar();
+      afterRound();
+    }
+
+    function timeUp() {
+      if (answered) return;
+      answered = true;
+      lives--;
+      streak = 0;
+      disableGates();
+      showCorrectGate();
+      feedbackEl.textContent = `Time's up! Correct answer: ${currentCorrect}`;
+      feedbackEl.style.color = "#b00020";
+      updateTopBar();
+      afterRound();
+    }
+
+    function afterRound() {
+      if (lives <= 0 || round >= TOTAL_ROUNDS) {
+        endGame();
+      } else {
+        nextBtn.style.display = "inline-block";
+      }
+    }
+
+    function updateTopBar() {
+      roundNum.textContent = round;
+      scoreNum.textContent = score;
+      streakNum.textContent = streak;
+      livesNum.textContent = lives;
+    }
+
+    function loadRound() {
+      answered = false;
+      feedbackEl.textContent = "";
+      gatesEl.innerHTML = "";
+      nextBtn.style.display = "none";
+      timerBar.style.width = "100%";
+
+      drawGrid();
+
+      currentData = generateData();
+      drawCurveSegment(currentData);
+
+      const askType = Math.random() < 0.5 ? "domain" : "range";
+      promptEl.textContent = askType === "domain"
+        ? "Choose the correct domain gate!"
+        : "Choose the correct range gate!";
+
+      const built = buildChoices(currentData, askType);
+      currentCorrect = built.correct;
+
+      built.options.forEach((option) => {
+        const btn = document.createElement("button");
+        btn.className = "gate";
+        btn.textContent = option;
+        btn.addEventListener("click", function () {
+          handleChoice(btn, option);
+        });
+        gatesEl.appendChild(btn);
+      });
+
+      startTimer();
+    }
+
+    function endGame() {
+      clearTimer();
+      gatesEl.innerHTML = "";
+      nextBtn.style.display = "none";
+      timerBar.style.width = "0%";
+
+      drawGrid();
+
+      ctx.fillStyle = "#111";
+      ctx.font = "36px Arial";
+      ctx.fillText("Game Over!", WIDTH / 2 - 95, 140);
+
+      ctx.font = "28px Arial";
+      ctx.fillText(`Final Score: ${score}`, WIDTH / 2 - 75, 195);
+
+      let rank = "Parabola Beginner";
+      if (score >= 10) rank = "Quadratic Champion";
+      else if (score >= 8) rank = "Range Runner";
+      else if (score >= 6) rank = "Vertex Explorer";
+      else if (score >= 4) rank = "Graph Scout";
+
+      ctx.fillText(rank, WIDTH / 2 - 110, 245);
+
+      promptEl.textContent = "Press Play Again to try a new arcade run.";
+      feedbackEl.textContent = "";
+      restartBtn.style.display = "inline-block";
+    }
+
+    startBtn.addEventListener("click", function () {
+      startBtn.style.display = "none";
+      instructionsEl.style.display = "none";
+      round = 1;
+      score = 0;
+      streak = 0;
+      lives = 3;
+      updateTopBar();
+      loadRound();
+    });
+
+    nextBtn.addEventListener("click", function () {
+      round++;
+      updateTopBar();
+      loadRound();
+    });
+
+    restartBtn.addEventListener("click", function () {
+      restartBtn.style.display = "none";
+      round = 1;
+      score = 0;
+      streak = 0;
+      lives = 3;
+      updateTopBar();
+      loadRound();
+    });
+
+    drawGrid();
+  </script>
+</body>
+</html>
