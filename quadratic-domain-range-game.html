@@ -290,107 +290,108 @@
       ctx.stroke();
     }
 
-    function drawCurveSegment(data) {
-      const { a, h, k, xMin, xMax, leftType, rightType } = data;
+function drawCurveSegment(data) {
+  const { a, h, k, xMin, xMax, leftType, rightType } = data;
 
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = 2;
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
 
-      const points = [];
-      for (let x = xMin; x <= xMax; x += 0.02) {
-        const y = f(a, h, k, x);
-        const px = toCanvasX(x);
-        const py = toCanvasY(y);
+  const margin = 16;
+  const points = [];
 
-        points.push({
-          x: x,
-          y: y,
-          px: px,
-          py: py,
-          visible: px >= 0 && px <= WIDTH && py >= 0 && py <= HEIGHT
-        });
-      }
+  for (let x = xMin; x <= xMax; x += 0.02) {
+    const y = f(a, h, k, x);
+    const px = toCanvasX(x);
+    const py = toCanvasY(y);
 
-      ctx.beginPath();
-      let drawing = false;
+    points.push({
+      x: x,
+      y: y,
+      px: px,
+      py: py,
+      visible: px >= margin && px <= WIDTH - margin && py >= margin && py <= HEIGHT - margin
+    });
+  }
 
-      for (let i = 0; i < points.length; i++) {
-        const p = points[i];
+  ctx.beginPath();
+  let drawing = false;
 
-        if (p.visible) {
-          if (!drawing) {
-            ctx.moveTo(p.px, p.py);
-            drawing = true;
-          } else {
-            ctx.lineTo(p.px, p.py);
-          }
-        } else {
-          drawing = false;
-        }
-      }
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
 
-      ctx.stroke();
-
-      const yLeft = f(a, h, k, xMin);
-      const yRight = f(a, h, k, xMax);
-
-      if (leftType === "open" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
-        drawOpenCircle(xMin, yLeft);
-      }
-      if (leftType === "closed" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
-        drawClosedCircle(xMin, yLeft);
-      }
-      if (rightType === "open" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
-        drawOpenCircle(xMax, yRight);
-      }
-      if (rightType === "closed" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
-        drawClosedCircle(xMax, yRight);
-      }
-
-      let firstVisibleIndex = -1;
-      let lastVisibleIndex = -1;
-
-      for (let i = 0; i < points.length; i++) {
-        if (points[i].visible) {
-          firstVisibleIndex = i;
-          break;
-        }
-      }
-
-      for (let i = points.length - 1; i >= 0; i--) {
-        if (points[i].visible) {
-          lastVisibleIndex = i;
-          break;
-        }
-      }
-
-      if (leftType === "arrow" && rightType === "arrow") {
-        if (firstVisibleIndex > 0) {
-          const tip = points[firstVisibleIndex];
-          const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
-          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
-        }
-
-        if (lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
-          const tip = points[lastVisibleIndex];
-          const inside = points[Math.max(lastVisibleIndex - 12, 0)];
-          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
-        }
+    if (p.visible) {
+      if (!drawing) {
+        ctx.moveTo(p.px, p.py);
+        drawing = true;
       } else {
-        if (leftType === "arrow" && firstVisibleIndex > 0) {
-          const tip = points[firstVisibleIndex];
-          const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
-          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
-        }
-
-        if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
-          const tip = points[lastVisibleIndex];
-          const inside = points[Math.max(lastVisibleIndex - 12, 0)];
-          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
-        }
+        ctx.lineTo(p.px, p.py);
       }
+    } else {
+      drawing = false;
+    }
+  }
+
+  ctx.stroke();
+
+  const yLeft = f(a, h, k, xMin);
+  const yRight = f(a, h, k, xMax);
+
+  if (leftType === "open" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
+    drawOpenCircle(xMin, yLeft);
+  }
+  if (leftType === "closed" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
+    drawClosedCircle(xMin, yLeft);
+  }
+  if (rightType === "open" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
+    drawOpenCircle(xMax, yRight);
+  }
+  if (rightType === "closed" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
+    drawClosedCircle(xMax, yRight);
+  }
+
+  let firstVisibleIndex = -1;
+  let lastVisibleIndex = -1;
+
+  for (let i = 0; i < points.length; i++) {
+    if (points[i].visible) {
+      firstVisibleIndex = i;
+      break;
+    }
+  }
+
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].visible) {
+      lastVisibleIndex = i;
+      break;
+    }
+  }
+
+  if (leftType === "arrow" && rightType === "arrow") {
+    if (firstVisibleIndex > 0) {
+      const tip = points[firstVisibleIndex];
+      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
     }
 
+    if (lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+      const tip = points[lastVisibleIndex];
+      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+  } else {
+    if (leftType === "arrow" && firstVisibleIndex > 0) {
+      const tip = points[firstVisibleIndex];
+      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+
+    if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+      const tip = points[lastVisibleIndex];
+      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+  }
+}
     function domainText(data) {
       const { xMin, xMax, leftType, rightType } = data;
 
