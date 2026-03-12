@@ -1,0 +1,94 @@
+function drawCurveSegment(data) {
+  const { a, h, k, xMin, xMax, leftType, rightType } = data;
+
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+
+  const points = [];
+  for (let x = xMin; x <= xMax; x += 0.02) {
+    const y = f(a, h, k, x);
+    const px = toCanvasX(x);
+    const py = toCanvasY(y);
+
+    points.push({
+      x, y, px, py,
+      visible: px >= 0 && px <= WIDTH && py >= 0 && py <= HEIGHT
+    });
+  }
+
+  // Draw only the visible parts of the curve
+  ctx.beginPath();
+  let drawing = false;
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+
+    if (p.visible) {
+      if (!drawing) {
+        ctx.moveTo(p.px, p.py);
+        drawing = true;
+      } else {
+        ctx.lineTo(p.px, p.py);
+      }
+    } else {
+      drawing = false;
+    }
+  }
+
+  ctx.stroke();
+
+  // Draw endpoint circles for restricted graphs
+  const yLeft = f(a, h, k, xMin);
+  const yRight = f(a, h, k, xMax);
+
+  if (leftType === "open") drawOpenCircle(xMin, yLeft);
+  if (leftType === "closed") drawClosedCircle(xMin, yLeft);
+  if (rightType === "open") drawOpenCircle(xMax, yRight);
+  if (rightType === "closed") drawClosedCircle(xMax, yRight);
+
+  // Find first and last visible sampled points
+  let firstVisibleIndex = -1;
+  let lastVisibleIndex = -1;
+
+  for (let i = 0; i < points.length; i++) {
+    if (points[i].visible) {
+      firstVisibleIndex = i;
+      break;
+    }
+  }
+
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].visible) {
+      lastVisibleIndex = i;
+      break;
+    }
+  }
+
+  // Full parabola: arrows on both visible ends
+  if (leftType === "arrow" && rightType === "arrow") {
+    if (firstVisibleIndex > 0) {
+      const tip = points[firstVisibleIndex];
+      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+
+    if (lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+      const tip = points[lastVisibleIndex];
+      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+  } else {
+    // One-sided arrow graphs
+    if (leftType === "arrow" && firstVisibleIndex > 0) {
+      const tip = points[firstVisibleIndex];
+      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+
+    if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+      const tip = points[lastVisibleIndex];
+      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    }
+  }
+}
