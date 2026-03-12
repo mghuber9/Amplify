@@ -536,69 +536,91 @@ function drawCurveSegment(data) {
       return { correct, answers };
     }
 
-    function generateData() {
-      const type = choice(["full", "segment", "rayLeft", "rayRight"]);
-      const a = choice([1, -1]);
-      const h = randInt(-4, 4);
-      const k = randInt(-2, 3);
+function generateData() {
+  function endpointVisible(x, a, h, k) {
+    const y = f(a, h, k, x);
+    const px = toCanvasX(x);
+    const py = toCanvasY(y);
+    const margin = 16;
+    return px >= margin && px <= WIDTH - margin && py >= margin && py <= HEIGHT - margin;
+  }
 
-      if (type === "full") {
-        return {
-          a: a,
-          h: h,
-          k: k,
-          xMin: -12,
-          xMax: 12,
-          leftType: "arrow",
-          rightType: "arrow"
-        };
-      }
+  while (true) {
+    const type = choice(["full", "segment", "rayLeft", "rayRight"]);
+    const a = choice([1, -1]);
+    const h = randInt(-4, 4);
+    const k = randInt(-2, 3);
 
-      if (type === "segment") {
-        let xMin = randInt(-8, -2);
-        let xMax = randInt(2, 8);
+    if (type === "full") {
+      return {
+        a: a,
+        h: h,
+        k: k,
+        xMin: -12,
+        xMax: 12,
+        leftType: "arrow",
+        rightType: "arrow"
+      };
+    }
 
-        if (xMin >= xMax) {
-          xMin = -6;
-          xMax = 6;
-        }
+    if (type === "segment") {
+      let xMin = randInt(-8, -2);
+      let xMax = randInt(2, 8);
 
-        return {
-          a: a,
-          h: h,
-          k: k,
-          xMin: xMin,
-          xMax: xMax,
-          leftType: choice(["open", "closed"]),
-          rightType: choice(["open", "closed"])
-        };
-      }
+      if (xMin >= xMax) continue;
 
-      if (type === "rayLeft") {
-        const xMax = randInt(1, 8);
-        return {
-          a: a,
-          h: h,
-          k: k,
-          xMin: -12,
-          xMax: xMax,
-          leftType: "arrow",
-          rightType: choice(["open", "closed"])
-        };
-      }
+      const leftType = choice(["open", "closed"]);
+      const rightType = choice(["open", "closed"]);
 
+      if (!endpointVisible(xMin, a, h, k)) continue;
+      if (!endpointVisible(xMax, a, h, k)) continue;
+
+      return {
+        a: a,
+        h: h,
+        k: k,
+        xMin: xMin,
+        xMax: xMax,
+        leftType: leftType,
+        rightType: rightType
+      };
+    }
+
+    if (type === "rayLeft") {
+      const xMax = randInt(1, 8);
+      const rightType = choice(["open", "closed"]);
+
+      if (!endpointVisible(xMax, a, h, k)) continue;
+
+      return {
+        a: a,
+        h: h,
+        k: k,
+        xMin: -12,
+        xMax: xMax,
+        leftType: "arrow",
+        rightType: rightType
+      };
+    }
+
+    if (type === "rayRight") {
       const xMin = randInt(-8, -1);
+      const leftType = choice(["open", "closed"]);
+
+      if (!endpointVisible(xMin, a, h, k)) continue;
+
       return {
         a: a,
         h: h,
         k: k,
         xMin: xMin,
         xMax: 12,
-        leftType: choice(["open", "closed"]),
+        leftType: leftType,
         rightType: "arrow"
       };
     }
-
+  }
+}
     function loadRound() {
       answered = false;
       feedbackEl.textContent = "";
