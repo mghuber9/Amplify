@@ -1,94 +1,719 @@
-function drawCurveSegment(data) {
-  const { a, h, k, xMin, xMax, leftType, rightType } = data;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quadratic Domain & Range Challenge</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6fb;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
 
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 2;
+    .game-box {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    }
 
-  const points = [];
-  for (let x = xMin; x <= xMax; x += 0.02) {
-    const y = f(a, h, k, x);
-    const px = toCanvasX(x);
-    const py = toCanvasY(y);
+    h1 {
+      margin-top: 0;
+      font-size: 30px;
+    }
 
-    points.push({
-      x, y, px, py,
-      visible: px >= 0 && px <= WIDTH && py >= 0 && py <= HEIGHT
-    });
-  }
+    #topBar {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
 
-  // Draw only the visible parts of the curve
-  ctx.beginPath();
-  let drawing = false;
+    canvas {
+      border: 1px solid #999;
+      background: #fff;
+      max-width: 100%;
+      height: auto;
+      margin-top: 10px;
+    }
 
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
+    #question {
+      font-size: 30px;
+      margin: 20px 0 16px;
+      font-weight: bold;
+    }
 
-    if (p.visible) {
-      if (!drawing) {
-        ctx.moveTo(p.px, p.py);
-        drawing = true;
-      } else {
-        ctx.lineTo(p.px, p.py);
+    #answers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+      gap: 12px;
+      max-width: 700px;
+      margin: 0 auto 16px;
+    }
+
+    button.answer-btn,
+    #nextBtn,
+    #restartBtn {
+      padding: 14px 12px;
+      font-size: 22px;
+      border: 1px solid #888;
+      border-radius: 10px;
+      background: #f7f7f7;
+      cursor: pointer;
+    }
+
+    button.answer-btn:hover,
+    #nextBtn:hover,
+    #restartBtn:hover {
+      background: #ececec;
+    }
+
+    button.answer-btn:disabled {
+      cursor: default;
+      opacity: 0.95;
+    }
+
+    #feedback {
+      min-height: 34px;
+      font-size: 22px;
+      font-weight: bold;
+      margin: 10px 0 14px;
+    }
+
+    .correct {
+      background: #d9f2d9 !important;
+      border-color: #3a8f3a !important;
+    }
+
+    .wrong {
+      background: #f8d7da !important;
+      border-color: #b04a57 !important;
+    }
+
+    #nextBtn,
+    #restartBtn {
+      min-width: 200px;
+    }
+
+    #restartBtn {
+      display: none;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-box">
+    <h1>Quadratic Domain & Range Challenge</h1>
+
+    <div id="topBar">
+      <div>Round: <span id="roundNum">1</span>/10</div>
+      <div>Score: <span id="scoreNum">0</span></div>
+      <div>Streak: <span id="streakNum">0</span></div>
+    </div>
+
+    <canvas id="graph" width="760" height="460"></canvas>
+
+    <div id="question">What is the domain?</div>
+    <div id="answers"></div>
+    <div id="feedback"></div>
+
+    <button id="nextBtn" disabled>Next Question</button>
+    <button id="restartBtn">Play Again</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("graph");
+    const ctx = canvas.getContext("2d");
+
+    const roundNum = document.getElementById("roundNum");
+    const scoreNum = document.getElementById("scoreNum");
+    const streakNum = document.getElementById("streakNum");
+    const questionEl = document.getElementById("question");
+    const answersEl = document.getElementById("answers");
+    const feedbackEl = document.getElementById("feedback");
+    const nextBtn = document.getElementById("nextBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const SCALE = 30;
+    const ORIGIN_X = WIDTH / 2;
+    const ORIGIN_Y = HEIGHT / 2 + 10;
+
+    let round = 1;
+    let score = 0;
+    let streak = 0;
+    let answered = false;
+    let currentQuestion = null;
+
+    function toCanvasX(x) {
+      return ORIGIN_X + x * SCALE;
+    }
+
+    function toCanvasY(y) {
+      return ORIGIN_Y - y * SCALE;
+    }
+
+    function f(a, h, k, x) {
+      return a * (x - h) * (x - h) + k;
+    }
+
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function choice(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function uniqueAnswers(arr) {
+      return [...new Set(arr)];
+    }
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
       }
-    } else {
-      drawing = false;
-    }
-  }
-
-  ctx.stroke();
-
-  // Draw endpoint circles for restricted graphs
-  const yLeft = f(a, h, k, xMin);
-  const yRight = f(a, h, k, xMax);
-
-  if (leftType === "open") drawOpenCircle(xMin, yLeft);
-  if (leftType === "closed") drawClosedCircle(xMin, yLeft);
-  if (rightType === "open") drawOpenCircle(xMax, yRight);
-  if (rightType === "closed") drawClosedCircle(xMax, yRight);
-
-  // Find first and last visible sampled points
-  let firstVisibleIndex = -1;
-  let lastVisibleIndex = -1;
-
-  for (let i = 0; i < points.length; i++) {
-    if (points[i].visible) {
-      firstVisibleIndex = i;
-      break;
-    }
-  }
-
-  for (let i = points.length - 1; i >= 0; i--) {
-    if (points[i].visible) {
-      lastVisibleIndex = i;
-      break;
-    }
-  }
-
-  // Full parabola: arrows on both visible ends
-  if (leftType === "arrow" && rightType === "arrow") {
-    if (firstVisibleIndex > 0) {
-      const tip = points[firstVisibleIndex];
-      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
-      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+      return copy;
     }
 
-    if (lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
-      const tip = points[lastVisibleIndex];
-      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
-      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
-    }
-  } else {
-    // One-sided arrow graphs
-    if (leftType === "arrow" && firstVisibleIndex > 0) {
-      const tip = points[firstVisibleIndex];
-      const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
-      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    function drawGrid() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#ddd";
+
+      for (let x = -12; x <= 12; x++) {
+        const px = toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, HEIGHT);
+        ctx.stroke();
+      }
+
+      for (let y = -7; y <= 7; y++) {
+        const py = toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(0, py);
+        ctx.lineTo(WIDTH, py);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(0, ORIGIN_Y);
+      ctx.lineTo(WIDTH, ORIGIN_Y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(ORIGIN_X, 0);
+      ctx.lineTo(ORIGIN_X, HEIGHT);
+      ctx.stroke();
+
+      ctx.fillStyle = "#222";
+      ctx.font = "16px Arial";
+
+      for (let x = -12; x <= 12; x++) {
+        const px = toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, ORIGIN_Y - 5);
+        ctx.lineTo(px, ORIGIN_Y + 5);
+        ctx.stroke();
+        if (x !== 0) {
+          ctx.fillText(x, px - 8, ORIGIN_Y + 20);
+        }
+      }
+
+      for (let y = -7; y <= 7; y++) {
+        const py = toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(ORIGIN_X - 5, py);
+        ctx.lineTo(ORIGIN_X + 5, py);
+        ctx.stroke();
+        if (y !== 0) {
+          ctx.fillText(y, ORIGIN_X + 10, py + 5);
+        }
+      }
+
+      ctx.fillText("0", ORIGIN_X + 8, ORIGIN_Y + 20);
+      ctx.fillText("x", WIDTH - 18, ORIGIN_Y - 10);
+      ctx.fillText("y", ORIGIN_X + 10, 20);
     }
 
-    if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
-      const tip = points[lastVisibleIndex];
-      const inside = points[Math.max(lastVisibleIndex - 12, 0)];
-      drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+    function drawOpenCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(toCanvasX(x), toCanvasY(y), 7, 0, Math.PI * 2);
+      ctx.fillStyle = "white";
+      ctx.fill();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
-  }
-}
+
+    function drawClosedCircle(x, y) {
+      ctx.beginPath();
+      ctx.arc(toCanvasX(x), toCanvasY(y), 7, 0, Math.PI * 2);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+
+    function drawArrowHead(x1, y1, x2, y2) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const headLength = 13;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle - Math.PI / 6),
+        y2 - headLength * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLength * Math.cos(angle + Math.PI / 6),
+        y2 - headLength * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.stroke();
+    }
+
+    function drawCurveSegment(data) {
+      const { a, h, k, xMin, xMax, leftType, rightType } = data;
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+
+      const points = [];
+      for (let x = xMin; x <= xMax; x += 0.02) {
+        const y = f(a, h, k, x);
+        const px = toCanvasX(x);
+        const py = toCanvasY(y);
+
+        points.push({
+          x: x,
+          y: y,
+          px: px,
+          py: py,
+          visible: px >= 0 && px <= WIDTH && py >= 0 && py <= HEIGHT
+        });
+      }
+
+      ctx.beginPath();
+      let drawing = false;
+
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+
+        if (p.visible) {
+          if (!drawing) {
+            ctx.moveTo(p.px, p.py);
+            drawing = true;
+          } else {
+            ctx.lineTo(p.px, p.py);
+          }
+        } else {
+          drawing = false;
+        }
+      }
+
+      ctx.stroke();
+
+      const yLeft = f(a, h, k, xMin);
+      const yRight = f(a, h, k, xMax);
+
+      if (leftType === "open" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
+        drawOpenCircle(xMin, yLeft);
+      }
+      if (leftType === "closed" && toCanvasY(yLeft) >= 0 && toCanvasY(yLeft) <= HEIGHT) {
+        drawClosedCircle(xMin, yLeft);
+      }
+      if (rightType === "open" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
+        drawOpenCircle(xMax, yRight);
+      }
+      if (rightType === "closed" && toCanvasY(yRight) >= 0 && toCanvasY(yRight) <= HEIGHT) {
+        drawClosedCircle(xMax, yRight);
+      }
+
+      let firstVisibleIndex = -1;
+      let lastVisibleIndex = -1;
+
+      for (let i = 0; i < points.length; i++) {
+        if (points[i].visible) {
+          firstVisibleIndex = i;
+          break;
+        }
+      }
+
+      for (let i = points.length - 1; i >= 0; i--) {
+        if (points[i].visible) {
+          lastVisibleIndex = i;
+          break;
+        }
+      }
+
+      if (leftType === "arrow" && rightType === "arrow") {
+        if (firstVisibleIndex > 0) {
+          const tip = points[firstVisibleIndex];
+          const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+        }
+
+        if (lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+          const tip = points[lastVisibleIndex];
+          const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+        }
+      } else {
+        if (leftType === "arrow" && firstVisibleIndex > 0) {
+          const tip = points[firstVisibleIndex];
+          const inside = points[Math.min(firstVisibleIndex + 12, points.length - 1)];
+          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+        }
+
+        if (rightType === "arrow" && lastVisibleIndex >= 0 && lastVisibleIndex < points.length - 1) {
+          const tip = points[lastVisibleIndex];
+          const inside = points[Math.max(lastVisibleIndex - 12, 0)];
+          drawArrowHead(inside.px, inside.py, tip.px, tip.py);
+        }
+      }
+    }
+
+    function domainText(data) {
+      const { xMin, xMax, leftType, rightType } = data;
+
+      if (leftType === "arrow" && rightType === "arrow") {
+        return "All Real Numbers";
+      }
+
+      if (leftType === "arrow") {
+        return rightType === "closed" ? `x ≤ ${xMax}` : `x < ${xMax}`;
+      }
+
+      if (rightType === "arrow") {
+        return leftType === "closed" ? `x ≥ ${xMin}` : `x > ${xMin}`;
+      }
+
+      const leftSymbol = leftType === "closed" ? "≤" : "<";
+      const rightSymbol = rightType === "closed" ? "≤" : "<";
+      return `${xMin} ${leftSymbol} x ${rightSymbol} ${xMax}`;
+    }
+
+    function rangeText(data) {
+      const { a, h, k, xMin, xMax, leftType, rightType } = data;
+
+      if (leftType === "arrow" && rightType === "arrow") {
+        return a > 0 ? `y ≥ ${k}` : `y ≤ ${k}`;
+      }
+
+      const testPoints = [xMin, xMax];
+      if (h >= xMin && h <= xMax) {
+        testPoints.push(h);
+      }
+
+      const yVals = testPoints.map((x) => {
+        let included = true;
+
+        if (x === xMin && leftType === "open") included = false;
+        if (x === xMax && rightType === "open") included = false;
+        if (x === h) included = true;
+
+        return {
+          x: x,
+          y: f(a, h, k, x),
+          included: included
+        };
+      });
+
+      const ys = yVals.map((p) => p.y);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      if (a > 0) {
+        const point = yVals.find((p) => p.y === minY);
+        return point && point.included ? `y ≥ ${minY}` : `y > ${minY}`;
+      } else {
+        const point = yVals.find((p) => p.y === maxY);
+        return point && point.included ? `y ≤ ${maxY}` : `y < ${maxY}`;
+      }
+    }
+
+    function buildQuestionSet(data, askType) {
+      const correct = askType === "domain" ? domainText(data) : rangeText(data);
+      let answers = [correct];
+
+      if (askType === "domain") {
+        if (correct === "All Real Numbers") {
+          answers.push(`-10 < x < 10`);
+          answers.push(`y ${data.a > 0 ? "≥" : "≤"} ${data.k}`);
+          answers.push(`x > ${data.k}`);
+        } else if (data.leftType === "arrow") {
+          answers.push(`x ${data.rightType === "closed" ? "<" : "≤"} ${data.xMax}`);
+          answers.push("All Real Numbers");
+          answers.push(`y > ${data.k}`);
+        } else if (data.rightType === "arrow") {
+          answers.push(`x ${data.leftType === "closed" ? ">" : "≥"} ${data.xMin}`);
+          answers.push("All Real Numbers");
+          answers.push(`x > ${data.k}`);
+        } else {
+          const leftWrong = data.leftType === "closed" ? "<" : "≤";
+          const rightWrong = data.rightType === "closed" ? "<" : "≤";
+          answers.push(`${data.xMin} ${leftWrong} x ${rightWrong} ${data.xMax}`);
+          answers.push(`${data.xMin} < y < ${data.xMax}`);
+          answers.push(`x > ${data.k}`);
+        }
+      } else {
+        if (correct.startsWith("y ≥")) {
+          const val = correct.split("≥")[1].trim();
+          answers.push(`y > ${val}`);
+          answers.push(`y ≤ ${val}`);
+          answers.push("All Real Numbers");
+        } else if (correct.startsWith("y >")) {
+          const val = correct.split(">")[1].trim();
+          answers.push(`y ≥ ${val}`);
+          answers.push(`y ≤ ${val}`);
+          answers.push("All Real Numbers");
+        } else if (correct.startsWith("y ≤")) {
+          const val = correct.split("≤")[1].trim();
+          answers.push(`y < ${val}`);
+          answers.push(`y ≥ ${val}`);
+          answers.push("All Real Numbers");
+        } else if (correct.startsWith("y <")) {
+          const val = correct.split("<")[1].trim();
+          answers.push(`y ≤ ${val}`);
+          answers.push(`y ≥ ${val}`);
+          answers.push("All Real Numbers");
+        } else {
+          answers.push(`x ≥ ${data.h}`);
+          answers.push(`x ≤ ${data.h}`);
+          answers.push(`${data.k} < y < ${data.h}`);
+        }
+      }
+
+      answers = uniqueAnswers(answers);
+
+      const domainFillers = [
+        `x < ${data.xMax}`,
+        `x > ${data.xMin}`,
+        "All Real Numbers",
+        `x ≥ ${data.h}`,
+        `y ≥ ${data.k}`
+      ];
+
+      const rangeFillers = [
+        `y > ${data.k}`,
+        `y < ${data.k}`,
+        "All Real Numbers",
+        `x ≥ ${data.h}`,
+        `y ≤ ${data.k}`
+      ];
+
+      while (answers.length < 4) {
+        answers.push(choice(askType === "domain" ? domainFillers : rangeFillers));
+        answers = uniqueAnswers(answers);
+      }
+
+      answers = shuffle(answers).slice(0, 4);
+
+      if (!answers.includes(correct)) {
+        answers[0] = correct;
+        answers = shuffle(answers);
+      }
+
+      return { correct, answers };
+    }
+
+    function generateData() {
+      const type = choice(["full", "segment", "rayLeft", "rayRight"]);
+      const a = choice([1, -1]);
+      const h = randInt(-4, 4);
+      const k = randInt(-2, 3);
+
+      if (type === "full") {
+        return {
+          a: a,
+          h: h,
+          k: k,
+          xMin: -12,
+          xMax: 12,
+          leftType: "arrow",
+          rightType: "arrow"
+        };
+      }
+
+      if (type === "segment") {
+        let xMin = randInt(-8, -2);
+        let xMax = randInt(2, 8);
+
+        if (xMin >= xMax) {
+          xMin = -6;
+          xMax = 6;
+        }
+
+        return {
+          a: a,
+          h: h,
+          k: k,
+          xMin: xMin,
+          xMax: xMax,
+          leftType: choice(["open", "closed"]),
+          rightType: choice(["open", "closed"])
+        };
+      }
+
+      if (type === "rayLeft") {
+        const xMax = randInt(1, 8);
+        return {
+          a: a,
+          h: h,
+          k: k,
+          xMin: -12,
+          xMax: xMax,
+          leftType: "arrow",
+          rightType: choice(["open", "closed"])
+        };
+      }
+
+      const xMin = randInt(-8, -1);
+      return {
+        a: a,
+        h: h,
+        k: k,
+        xMin: xMin,
+        xMax: 12,
+        leftType: choice(["open", "closed"]),
+        rightType: "arrow"
+      };
+    }
+
+    function loadRound() {
+      answered = false;
+      feedbackEl.textContent = "";
+      answersEl.innerHTML = "";
+      nextBtn.disabled = true;
+
+      drawGrid();
+
+      const data = generateData();
+      drawCurveSegment(data);
+
+      const askType = Math.random() < 0.5 ? "domain" : "range";
+      questionEl.textContent = askType === "domain" ? "What is the domain?" : "What is the range?";
+
+      currentQuestion = buildQuestionSet(data, askType);
+
+      currentQuestion.answers.forEach((ans) => {
+        const btn = document.createElement("button");
+        btn.className = "answer-btn";
+        btn.textContent = ans;
+        btn.addEventListener("click", function () {
+          handleAnswer(btn, ans, currentQuestion.correct);
+        });
+        answersEl.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(button, selected, correct) {
+      if (answered) return;
+      answered = true;
+
+      const buttons = document.querySelectorAll(".answer-btn");
+
+      buttons.forEach((btn) => {
+        btn.disabled = true;
+        if (btn.textContent === correct) {
+          btn.classList.add("correct");
+        }
+      });
+
+      if (selected === correct) {
+        score++;
+        streak++;
+        button.classList.add("correct");
+        feedbackEl.textContent = "Correct!";
+        feedbackEl.style.color = "#2c7a2c";
+      } else {
+        streak = 0;
+        button.classList.add("wrong");
+        feedbackEl.textContent = `Not quite. Correct answer: ${correct}`;
+        feedbackEl.style.color = "#b00020";
+      }
+
+      scoreNum.textContent = score;
+      streakNum.textContent = streak;
+      nextBtn.disabled = false;
+    }
+
+    function endGame() {
+      drawGrid();
+
+      ctx.fillStyle = "#111";
+      ctx.font = "36px Arial";
+      ctx.fillText("Game Over!", WIDTH / 2 - 95, 140);
+
+      ctx.font = "28px Arial";
+      ctx.fillText(`Final Score: ${score} / 10`, WIDTH / 2 - 105, 200);
+
+      let rank = "Quadratic Apprentice";
+      if (score >= 9) {
+        rank = "Quadratic Champion";
+      } else if (score >= 7) {
+        rank = "Range Master";
+      } else if (score >= 5) {
+        rank = "Vertex Explorer";
+      }
+
+      ctx.fillText(rank, WIDTH / 2 - 120, 250);
+
+      questionEl.style.display = "none";
+      answersEl.style.display = "none";
+      feedbackEl.style.display = "none";
+      nextBtn.style.display = "none";
+      restartBtn.style.display = "inline-block";
+    }
+
+    nextBtn.addEventListener("click", function () {
+      if (round >= 10) {
+        endGame();
+        return;
+      }
+
+      round++;
+      roundNum.textContent = round;
+      loadRound();
+    });
+
+    restartBtn.addEventListener("click", function () {
+      round = 1;
+      score = 0;
+      streak = 0;
+
+      roundNum.textContent = round;
+      scoreNum.textContent = score;
+      streakNum.textContent = streak;
+
+      questionEl.style.display = "block";
+      answersEl.style.display = "grid";
+      feedbackEl.style.display = "block";
+      nextBtn.style.display = "inline-block";
+      restartBtn.style.display = "none";
+
+      loadRound();
+    });
+
+    loadRound();
+  </script>
+</body>
+</html>
