@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desmos Extra Practice</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 20px;
+      line-height: 1.5;
+      background: #f7f7f7;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    .instructions {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+    }
+
+    .problem {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    .choices label {
+      display: block;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #2d6cdf;
+      color: white;
+    }
+
+    button:hover {
+      background: #1f57b8;
+    }
+
+    .feedback {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    .correct {
+      color: green;
+    }
+
+    .incorrect {
+      color: #b00020;
+    }
+
+    .hint {
+      margin-top: 8px;
+      color: #444;
+      font-style: italic;
+    }
+
+    .score-box {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+      font-size: 18px;
+      margin-top: 30px;
+    }
+
+    .small-note {
+      font-size: 14px;
+      color: #555;
+    }
+
+    code {
+      background: #eee;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Desmos Extra Practice</h1>
+
+  <div class="instructions">
+    <p><strong>Directions:</strong> Use Desmos to help solve each problem. You can open Desmos in another tab if needed.</p>
+    <p>
+      Desmos link:
+      <a href="https://www.desmos.com/calculator" target="_blank">Open Desmos Calculator</a>
+    </p>
+    <p class="small-note">
+      For many of these, type both sides as equations in the form <code>y = ...</code>.
+    </p>
+  </div>
+
+  <!-- Problem 1 -->
+  <div class="problem">
+    <h2>1. Solve by graphing</h2>
+    <p>Solve: <strong>2x + 3 = 11</strong></p>
+    <p>Type <code>y = 2x + 3</code> and <code>y = 11</code> into Desmos. What is the x-value of the intersection?</p>
+    <input type="text" id="q1" placeholder="Enter your answer" />
+    <br>
+    <button onclick="checkQ1()">Check Answer</button>
+    <div id="f1" class="feedback"></div>
+  </div>
+
+  <!-- Problem 2 -->
+  <div class="problem">
+    <h2>2. Which equation matches?</h2>
+    <p>Which equation has slope <strong>2</strong> and y-intercept <strong>-1</strong>?</p>
+    <div class="choices">
+      <label><input type="radio" name="q2" value="A"> A. y = 2x - 1</label>
+      <label><input type="radio" name="q2" value="B"> B. y = x - 2</label>
+      <label><input type="radio" name="q2" value="C"> C. y = -2x - 1</label>
+      <label><input type="radio" name="q2" value="D"> D. y = 2x + 1</label>
+    </div>
+    <button onclick="checkQ2()">Check Answer</button>
+    <div id="f2" class="feedback"></div>
+  </div>
+
+  <!-- Problem 3 -->
+  <div class="problem">
+    <h2>3. Fix the mistake</h2>
+    <p>A student says the equation for this table is <strong>y = 2x + 1</strong>.</p>
+
+    <table border="1" cellpadding="8" cellspacing="0">
+      <tr>
+        <th>x</th>
+        <th>0</th>
+        <th>1</th>
+        <th>2</th>
+        <th>3</th>
+      </tr>
+      <tr>
+        <th>y</th>
+        <td>3</td>
+        <td>5</td>
+        <td>7</td>
+        <td>9</td>
+      </tr>
+    </table>
+
+    <p>What mistake did the student make?</p>
+    <div class="choices">
+      <label><input type="radio" name="q3" value="A"> A. The slope is wrong</label>
+      <label><input type="radio" name="q3" value="B"> B. The y-intercept is wrong</label>
+      <label><input type="radio" name="q3" value="C"> C. Both are wrong</label>
+      <label><input type="radio" name="q3" value="D"> D. There is no mistake</label>
+    </div>
+    <button onclick="checkQ3()">Check Answer</button>
+    <div id="f3" class="feedback"></div>
+  </div>
+
+  <!-- Problem 4 -->
+  <div class="problem">
+    <h2>4. Vertex detective</h2>
+    <p>Graph this equation in Desmos:</p>
+    <p><strong>y = x² - 4x + 3</strong></p>
+    <p>What is the vertex?</p>
+    <div class="choices">
+      <label><input type="radio" name="q4" value="A"> A. (2, -1)</label>
+      <label><input type="radio" name="q4" value="B"> B. (2, 1)</label>
+      <label><input type="radio" name="q4" value="C"> C. (-2, -1)</label>
+      <label><input type="radio" name="q4" value="D"> D. (4, 3)</label>
+    </div>
+    <button onclick="checkQ4()">Check Answer</button>
+    <div id="f4" class="feedback"></div>
+  </div>
+
+  <!-- Problem 5 -->
+  <div class="problem">
+    <h2>5. Word problem</h2>
+    <p>A streaming service charges a <strong>$6 signup fee</strong> and <strong>$4 per month</strong>.</p>
+    <p>How many months will cost <strong>$30</strong> total?</p>
+    <p>Try graphing <code>y = 4x + 6</code> and <code>y = 30</code>.</p>
+    <input type="text" id="q5" placeholder="Enter your answer" />
+    <br>
+    <button onclick="checkQ5()">Check Answer</button>
+    <div id="f5" class="feedback"></div>
+  </div>
+
+  <div class="score-box">
+    Score: <span id="score">0</span> / 5
+  </div>
+
+  <script>
+    let score = 0;
+    let answered = {
+      q1: false,
+      q2: false,
+      q3: false,
+      q4: false,
+      q5: false
+    };
+
+    function markCorrect(questionKey, feedbackId, message) {
+      const feedback = document.getElementById(feedbackId);
+      feedback.className = "feedback correct";
+      feedback.innerHTML = "Correct! " + message;
+
+      if (!answered[questionKey]) {
+        score++;
+        answered[questionKey] = true;
+        updateScore();
+      }
+    }
+
+    function markIncorrect(feedbackId, message) {
+      const feedback = document.getElementById(feedbackId);
+      feedback.className = "feedback incorrect";
+      feedback.innerHTML = "Not quite. " + message;
+    }
+
+    function updateScore() {
+      document.getElementById("score").textContent = score;
+    }
+
+    function checkQ1() {
+      const answer = document.getElementById("q1").value.trim();
+      if (answer === "4") {
+        markCorrect("q1", "f1", "The graphs intersect at x = 4.");
+      } else {
+        markIncorrect("f1", "Graph both sides: y = 2x + 3 and y = 11. Then click the intersection and read the x-coordinate.");
+      }
+    }
+
+    function checkQ2() {
+      const selected = document.querySelector('input[name="q2"]:checked');
+      if (!selected) {
+        markIncorrect("f2", "Choose an answer first.");
+        return;
+      }
+
+      if (selected.value === "A") {
+        markCorrect("q2", "f2", "The slope is 2 and the y-intercept is -1.");
+      } else if (selected.value === "B") {
+        markIncorrect("f2", "This equation has slope 1, not 2.");
+      } else if (selected.value === "C") {
+        markIncorrect("f2", "This equation has slope -2, so the line goes down.");
+      } else {
+        markIncorrect("f2", "This has the correct slope, but the y-intercept is +1, not -1.");
+      }
+    }
+
+    function checkQ3() {
+      const selected = document.querySelector('input[name="q3"]:checked');
+      if (!selected) {
+        markIncorrect("f3", "Choose an answer first.");
+        return;
+      }
+
+      if (selected.value === "B") {
+        markCorrect("q3", "f3", "The slope is correct, but when x = 0, y should be 3, not 1.");
+      } else if (selected.value === "A") {
+        markIncorrect("f3", "Check the pattern: y increases by 2 each time, so the slope is correct.");
+      } else if (selected.value === "C") {
+        markIncorrect("f3", "Only one part is wrong. The slope is fine.");
+      } else {
+        markIncorrect("f3", "Plug in x = 0. The student's equation gives y = 1, but the table shows y = 3.");
+      }
+    }
+
+    function checkQ4() {
+      const selected = document.querySelector('input[name="q4"]:checked');
+      if (!selected) {
+        markIncorrect("f4", "Choose an answer first.");
+        return;
+      }
+
+      if (selected.value === "A") {
+        markCorrect("q4", "f4", "That is the lowest point of the parabola.");
+      } else if (selected.value === "B") {
+        markIncorrect("f4", "You have the correct x-value, but the y-value is too high.");
+      } else if (selected.value === "C") {
+        markIncorrect("f4", "The x-value is positive 2, not negative 2.");
+      } else {
+        markIncorrect("f4", "That point is not the turning point of the graph.");
+      }
+    }
+
+    function checkQ5() {
+      const answer = document.getElementById("q5").value.trim();
+      if (answer === "6") {
+        markCorrect("q5", "f5", "After 6 months, the total cost is $30.");
+      } else {
+        markIncorrect("f5", "Graph y = 4x + 6 and y = 30. Then read the x-coordinate where they intersect.");
+      }
+    }
+  </script>
+</body>
+</html>
