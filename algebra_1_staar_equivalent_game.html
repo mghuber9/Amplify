@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algebra 1 STAAR Game - Equivalent Expressions and Functions</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --bad: #991b1b;
+      --bad-bg: #fee2e2;
+      --border: #d1d5db;
+      --shadow: 0 12px 30px rgba(0,0,0,.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      text-align: center;
+      min-width: 110px;
+    }
+
+    .progress-shell {
+      height: 16px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 16px 0 6px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2563eb, #60a5fa);
+      transition: width .25s ease;
+    }
+
+    .progress-label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .question-type {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #7c2d12;
+      background: #ffedd5;
+      border-radius: 999px;
+      padding: 7px 12px;
+      margin-bottom: 14px;
+    }
+
+    .question-text {
+      font-size: 31px;
+      line-height: 1.35;
+      margin-bottom: 20px;
+    }
+
+    .answers {
+      display: grid;
+      gap: 14px;
+    }
+
+    .answer {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      background: #fff;
+      cursor: pointer;
+      transition: transform .08s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+      text-align: left;
+    }
+
+    .answer:hover {
+      transform: translateY(-1px);
+      border-color: #93c5fd;
+      box-shadow: 0 6px 18px rgba(37,99,235,.10);
+    }
+
+    .answer.selected {
+      border-color: var(--accent);
+      background: #eff6ff;
+    }
+
+    .answer.correct {
+      border-color: var(--good);
+      background: var(--good-bg);
+    }
+
+    .answer.incorrect {
+      border-color: var(--bad);
+      background: var(--bad-bg);
+    }
+
+    .answer.disabled {
+      cursor: default;
+      opacity: .95;
+    }
+
+    .bubble {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #f3f4f6;
+      border: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .answer-html {
+      font-size: 32px;
+      line-height: 1.35;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button, .link-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .ghost {
+      background: #fff;
+      color: var(--accent);
+      border: 2px solid #bfdbfe;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .feedback {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 16px;
+      font-weight: 700;
+      font-size: 17px;
+      display: none;
+    }
+
+    .feedback.good {
+      display: block;
+      background: var(--good-bg);
+      color: var(--good);
+    }
+
+    .feedback.bad {
+      display: block;
+      background: var(--bad-bg);
+      color: var(--bad);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .results-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .result-row {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .math {
+      font-family: "Cambria Math", "Times New Roman", serif;
+      white-space: nowrap;
+    }
+
+    sup { font-size: 0.68em; }
+
+    .frac {
+      display: inline-grid;
+      grid-template-rows: auto auto;
+      justify-items: center;
+      align-items: center;
+      vertical-align: middle;
+      line-height: 1;
+      margin: 0 .12em;
+      min-width: 1.2em;
+    }
+
+    .frac .top {
+      display: block;
+      border-bottom: 2px solid #111827;
+      padding: 0 .18em .08em;
+    }
+
+    .frac .bottom {
+      display: block;
+      padding: .08em .18em 0;
+    }
+
+    .small-math { font-size: 24px; }
+
+    .hidden { display: none; }
+
+    @media (max-width: 700px) {
+      .wrap { padding: 14px; }
+      .card { padding: 16px; border-radius: 16px; }
+      .topbar { grid-template-columns: 1fr; }
+      .question-text { font-size: 24px; }
+      .answer-html { font-size: 25px; }
+      .answer { grid-template-columns: 42px 1fr; padding: 12px; }
+      .bubble { width: 32px; height: 32px; font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section id="startScreen" class="card">
+      <h1>Algebra 1 STAAR Game</h1>
+      <h2>Equivalent Expressions and Equivalent Functions</h2>
+      <p class="note">Untimed review game for class use. Students can take as long as needed and open Desmos in another tab whenever they want.</p>
+      <div class="controls">
+        <button id="startBtn" class="primary">Start Game</button>
+        <a class="link-btn ghost" href="https://www.desmos.com/calculator" target="_blank" rel="noopener noreferrer">Open Desmos</a>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="card hidden">
+      <div class="topbar">
+        <div>
+          <div class="progress-shell"><div id="progressBar" class="progress-bar"></div></div>
+          <div id="progressLabel" class="progress-label">Question 1 of 10</div>
+        </div>
+        <div id="scorePill" class="pill">Score: 0</div>
+        <div id="streakPill" class="pill">Streak: 0</div>
+      </div>
+
+      <div id="questionType" class="question-type">Select one answer</div>
+      <div id="questionText" class="question-text"></div>
+      <div id="answers" class="answers"></div>
+      <div id="feedback" class="feedback"></div>
+
+      <div class="controls">
+        <button id="submitBtn" class="primary">Submit Answer</button>
+        <button id="nextBtn" class="secondary" disabled>Next Question</button>
+        <button id="clearBtn" class="ghost">Clear Selection</button>
+      </div>
+    </section>
+
+    <section id="resultsScreen" class="card hidden">
+      <h2>Game Complete</h2>
+      <p id="finalScore" class="question-text" style="font-size: 28px;"></p>
+      <p id="finalMessage" class="note"></p>
+      <div class="controls">
+        <button id="restartBtn" class="primary">Play Again</button>
+        <a class="link-btn ghost" href="https://www.desmos.com/calculator" target="_blank" rel="noopener noreferrer">Open Desmos</a>
+      </div>
+      <div id="resultsList" class="results-list"></div>
+    </section>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math">√50</span>?',
+        choices: [
+          '2<span class="math">√5</span>',
+          '5<span class="math">√2</span>',
+          '12.5',
+          '25'
+        ],
+        correct: [1]
+      },
+      {
+        type: 'multi',
+        prompt: 'Which expressions are equivalent to <span class="math">6x<sup>2</sup> + 3x − 9</span>? Select <strong>TWO</strong> correct answers.',
+        choices: [
+          '−3(2x<sup>2</sup> + x + 3)',
+          '3(2x<sup>2</sup> + x − 3)',
+          '3(2x − 3)(x + 1)',
+          '3(2x + 3)(x − 1)',
+          '−3(2x − 3)(x − 1)'
+        ],
+        correct: [1, 2]
+      },
+      {
+        type: 'single',
+        prompt: 'Which function is equivalent to <span class="math">f(x) = 6x<sup>2</sup> − 23x + 21</span>?',
+        choices: [
+          '<span class="math">f(x)</span> = (3x − 7)(2x − 3)',
+          '<span class="math">f(x)</span> = 3(x − 1)(2x − 7)',
+          '<span class="math">f(x)</span> = (6x − 7)(x − 3)',
+          '<span class="math">f(x)</span> = 3(x − 7)(2x − 1)'
+        ],
+        correct: [0]
+      },
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math"><span class="frac"><span class="top">(6y<sup>3</sup>)<sup>−2</sup></span><span class="bottom">y</span></span></span> for all values of <span class="math">y</span> where the expression is defined?',
+        choices: [
+          '<span class="math"><span class="frac"><span class="top">1</span><span class="bottom">36y<sup>7</sup></span></span></span>',
+          '<span class="math"><span class="frac"><span class="top">1</span><span class="bottom">36y<sup>6</sup></span></span></span>',
+          '<span class="math"><span class="frac"><span class="top">1</span><span class="bottom">12y<sup>7</sup></span></span></span>',
+          '<span class="math"><span class="frac"><span class="top">1</span><span class="bottom">12y<sup>6</sup></span></span></span>'
+        ],
+        correct: [0]
+      },
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math">1.5(4j − 10k) − 2.5(8j + 6k)</span>?',
+        choices: [
+          '−12j + 4k',
+          '−26j',
+          '−14j − 30k',
+          '−14j'
+        ],
+        correct: [1]
+      },
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math">4(x − 3) + 2x</span>?',
+        choices: [
+          '<span class="math">6x − 12</span>',
+          '<span class="math">6x − 3</span>',
+          '<span class="math">8x − 12</span>',
+          '<span class="math">6x + 12</span>'
+        ],
+        correct: [0]
+      },
+      {
+        type: 'multi',
+        prompt: 'Which expressions are equivalent to <span class="math">x<sup>2</sup> − 16</span>? Select <strong>TWO</strong> correct answers.',
+        choices: [
+          '(x − 4)(x + 4)',
+          '(x − 8)(x + 2)',
+          'x(x − 16)',
+          '(4 − x)(4 + x)',
+          '−(x − 4)(x + 4)'
+        ],
+        correct: [0, 3]
+      },
+      {
+        type: 'single',
+        prompt: 'Which function is equivalent to <span class="math">g(x) = x<sup>2</sup> + 7x + 10</span>?',
+        choices: [
+          '<span class="math">g(x)</span> = (x + 5)(x + 2)',
+          '<span class="math">g(x)</span> = (x + 10)(x + 1)',
+          '<span class="math">g(x)</span> = (x − 5)(x − 2)',
+          '<span class="math">g(x)</span> = (x + 5)<sup>2</sup>'
+        ],
+        correct: [0]
+      },
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math">(2x − 5)<sup>2</sup></span>?',
+        choices: [
+          '<span class="math">4x<sup>2</sup> − 25</span>',
+          '<span class="math">4x<sup>2</sup> − 20x + 25</span>',
+          '<span class="math">2x<sup>2</sup> − 10x + 25</span>',
+          '<span class="math">4x<sup>2</sup> − 10x + 25</span>'
+        ],
+        correct: [1]
+      },
+      {
+        type: 'single',
+        prompt: 'Which expression is equivalent to <span class="math"><span class="frac"><span class="top">3x<sup>2</sup> − 12x</span><span class="bottom">3x</span></span></span> for all values of <span class="math">x</span> where the expression is defined?',
+        choices: [
+          '<span class="math">x − 4</span>',
+          '<span class="math">x − 12</span>',
+          '<span class="math">3x − 4</span>',
+          '<span class="math">x<sup>2</sup> − 4</span>'
+        ],
+        correct: [0]
+      }
+    ];
+
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const resultsScreen = document.getElementById('resultsScreen');
+
+    const progressBar = document.getElementById('progressBar');
+    const progressLabel = document.getElementById('progressLabel');
+    const scorePill = document.getElementById('scorePill');
+    const streakPill = document.getElementById('streakPill');
+    const questionType = document.getElementById('questionType');
+    const questionText = document.getElementById('questionText');
+    const answersEl = document.getElementById('answers');
+    const feedbackEl = document.getElementById('feedback');
+    const submitBtn = document.getElementById('submitBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const finalScore = document.getElementById('finalScore');
+    const finalMessage = document.getElementById('finalMessage');
+    const resultsList = document.getElementById('resultsList');
+
+    let order = [];
+    let currentIndex = 0;
+    let selected = [];
+    let score = 0;
+    let streak = 0;
+    let results = [];
+    let locked = false;
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function arraysEqualAsSets(a, b) {
+      if (a.length !== b.length) return false;
+      const aSorted = [...a].sort((x, y) => x - y);
+      const bSorted = [...b].sort((x, y) => x - y);
+      return aSorted.every((val, i) => val === bSorted[i]);
+    }
+
+    function startGame() {
+      order = shuffle(questions.map((_, i) => i));
+      currentIndex = 0;
+      selected = [];
+      score = 0;
+      streak = 0;
+      results = [];
+      locked = false;
+      startScreen.classList.add('hidden');
+      resultsScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      locked = false;
+      selected = [];
+      feedbackEl.className = 'feedback';
+      feedbackEl.textContent = '';
+      submitBtn.disabled = false;
+      nextBtn.disabled = true;
+
+      const q = questions[order[currentIndex]];
+      questionType.textContent = q.type === 'multi' ? 'Select all correct answers, then press Submit' : 'Select one answer';
+      questionText.innerHTML = q.prompt;
+      progressLabel.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
+      progressBar.style.width = `${((currentIndex + 1) / questions.length) * 100}%`;
+      scorePill.textContent = `Score: ${score}`;
+      streakPill.textContent = `Streak: ${streak}`;
+
+      answersEl.innerHTML = '';
+      q.choices.forEach((choice, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer';
+        btn.type = 'button';
+        btn.innerHTML = `
+          <div class="bubble">${String.fromCharCode(65 + i)}</div>
+          <div class="answer-html">${choice}</div>
+        `;
+        btn.addEventListener('click', () => toggleChoice(i, btn, q.type));
+        answersEl.appendChild(btn);
+      });
+    }
+
+    function toggleChoice(index, btn, type) {
+      if (locked) return;
+
+      const allButtons = [...document.querySelectorAll('.answer')];
+
+      if (type === 'single') {
+        selected = [index];
+        allButtons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        return;
+      }
+
+      if (selected.includes(index)) {
+        selected = selected.filter(i => i !== index);
+        btn.classList.remove('selected');
+      } else {
+        selected.push(index);
+        btn.classList.add('selected');
+      }
+    }
+
+    function clearSelection() {
+      if (locked) return;
+      selected = [];
+      document.querySelectorAll('.answer').forEach(btn => btn.classList.remove('selected'));
+    }
+
+    function submitAnswer() {
+      if (locked || selected.length === 0) return;
+
+      locked = true;
+      submitBtn.disabled = true;
+      nextBtn.disabled = false;
+
+      const q = questions[order[currentIndex]];
+      const correct = arraysEqualAsSets(selected, q.correct);
+      const answerButtons = [...document.querySelectorAll('.answer')];
+
+      answerButtons.forEach((btn, i) => {
+        btn.classList.add('disabled');
+        if (q.correct.includes(i)) btn.classList.add('correct');
+        if (selected.includes(i) && !q.correct.includes(i)) btn.classList.add('incorrect');
+      });
+
+      if (correct) {
+        score++;
+        streak++;
+        feedbackEl.className = 'feedback good';
+        feedbackEl.textContent = q.type === 'multi' ? 'Correct. You selected the matching equivalent expressions.' : 'Correct.';
+      } else {
+        streak = 0;
+        feedbackEl.className = 'feedback bad';
+        feedbackEl.textContent = q.type === 'multi' ? 'Not quite. Compare each choice by simplifying, factoring, or checking in Desmos.' : 'Not quite. Try checking structure, signs, and operations in each term.';
+      }
+
+      results.push({
+        prompt: q.prompt.replace(/<[^>]*>/g, ''),
+        correct,
+        selectedLetters: selected.map(i => String.fromCharCode(65 + i)).join(', ') || 'None',
+        correctLetters: q.correct.map(i => String.fromCharCode(65 + i)).join(', ')
+      });
+
+      scorePill.textContent = `Score: ${score}`;
+      streakPill.textContent = `Streak: ${streak}`;
+    }
+
+    function nextQuestion() {
+      currentIndex++;
+      if (currentIndex >= questions.length) {
+        showResults();
+      } else {
+        renderQuestion();
+      }
+    }
+
+    function showResults() {
+      gameScreen.classList.add('hidden');
+      resultsScreen.classList.remove('hidden');
+      finalScore.textContent = `You got ${score} out of ${questions.length}.`;
+
+      let message = 'Nice work. Reopen the game and try again, or use Desmos to check the ones that were tricky.';
+      if (score === questions.length) message = 'Perfect score. You are ready for a tougher set.';
+      else if (score >= 8) message = 'Strong work. A little more checking on factoring and structure should lock this in.';
+      else if (score >= 5) message = 'Good start. Focus on signs, distributing carefully, and verifying equivalent forms.';
+
+      finalMessage.textContent = message;
+      resultsList.innerHTML = '';
+
+      results.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'result-row';
+        row.innerHTML = `
+          <strong>Question ${idx + 1}:</strong> ${item.correct ? 'Correct' : 'Needs review'}<br>
+          <span class="note">Your choice: ${item.selectedLetters} | Correct answer: ${item.correctLetters}</span>
+        `;
+        resultsList.appendChild(row);
+      });
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('submitBtn').addEventListener('click', submitAnswer);
+    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+    document.getElementById('clearBtn').addEventListener('click', clearSelection);
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+  </script>
+</body>
+</html>
